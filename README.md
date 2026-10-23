@@ -866,12 +866,16 @@ POST   /api/panels/edit/calculator                   字段计算器（body: {re
   "mcpServers": {
     "gisds": {
       "command": "cmd.exe",
-      "args": ["/c", "D:\\MiniMax\\gis-data-server\\mcp.bat"],
-      "env": { "GISDS_DATA_ROOT": "D:\\MiniMax\\gis-data-server\\data" }
+      "args": ["/c", "C:\\path\\to\\browser-qgis\\mcp.bat"],
+      "env": { "GISDS_DATA_ROOT": "C:\\path\\to\\browser-qgis\\data" }
     }
   }
 }
 ```
+
+> 把 `C:\\path\\to\\browser-qgis` 换成**你自己解压这个项目的位置**。
+> `mcp.bat` 会用它自己旁边的 `run-qgis-python.bat` 找 QGIS，
+> `GISDS_DATA_ROOT` 不填也能跑（默认用项目下的 `data\`）。
 
 ### 工具清单（27 个）
 

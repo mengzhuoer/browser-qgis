@@ -7,7 +7,7 @@ REM    {
 REM      "mcpServers": {
 REM        "gisds": {
 REM          "command": "C:\\Windows\\System32\\cmd.exe",
-REM          "args": ["/c", "D:\\MiniMax\\gis-data-server\\mcp.bat"]
+REM          "args": ["/c", "C:\\path\\to\\browser-qgis\\mcp.bat"]
 REM        }
 REM      }
 REM    }
