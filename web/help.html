@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>使用帮助 · Browser QGIS</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/static/favicon.png" />
+<link rel="icon" type="image/png" sizes="1024x1024" href="/static/icon.png" />
+<style>
+  :root{
+    --paper:#EEF0EB; --panel:#FBFCFA; --panel-2:#F4F6F1; --panel-3:#E7EAE3;
+    --rule:#CFD5CC; --rule-2:#B4BDB0;
+    --ink:#1E2420; --ink-2:#4C554C; --ink-3:#7B857B;
+    --moss:#2C6B4F; --moss-2:#1F523C; --moss-soft:#E2EEE7;
+    --rust:#A33B24; --rust-soft:#F6E7E1; --amber:#8A6410;
+    --mono:"Cascadia Mono","Consolas","Courier New",monospace;
+    --ui:"Segoe UI","Microsoft YaHei",-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;background:var(--paper);color:var(--ink);
+    font:13.5px/1.75 var(--ui);
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1020px;margin:0 auto;padding:0 26px 80px}
+  .top{
+    position:sticky;top:0;z-index:20;background:var(--paper);
+    border-bottom:1px solid var(--rule);margin-bottom:26px;
+  }
+  .top .inner{max-width:1020px;margin:0 auto;padding:11px 26px;
+    display:flex;align-items:center;gap:14px}
+  .top img{width:22px;height:22px;display:block}
+  .top b{font-size:14px}
+  .top .sub{color:var(--ink-3);font-size:12px}
+  .top .spacer{flex:1}
+  .top a{color:var(--ink-2);text-decoration:none;font-size:12.5px;
+    border:1px solid var(--rule);border-radius:3px;padding:3px 9px;background:var(--panel)}
+  .top a:hover{border-color:var(--rule-2);color:var(--ink)}
+  h1{font-size:23px;margin:30px 0 4px;letter-spacing:.2px}
+  .lead{color:var(--ink-2);margin:0 0 8px;font-size:13.5px}
+  h2{font-size:16px;margin:34px 0 10px;padding-bottom:6px;
+    border-bottom:1px solid var(--rule);scroll-margin-top:56px}
+  h3{font-size:13.5px;margin:18px 0 6px;color:var(--ink)}
+  p{margin:8px 0}
+  ul,ol{margin:8px 0 8px 20px;padding:0}
+  li{margin:4px 0}
+  code,.k{font-family:var(--mono);font-size:12px;background:var(--panel-2);
+    border:1px solid var(--rule);border-radius:2px;padding:0 4px}
+  .card{background:var(--panel);border:1px solid var(--rule);border-radius:4px;
+    padding:12px 15px;margin:12px 0}
+  .note{border-left:3px solid var(--moss);background:var(--moss-soft);
+    padding:9px 13px;border-radius:0 3px 3px 0;margin:12px 0}
+  .note.warn{border-left-color:var(--amber);background:#F6EFDD}
+  .note.bad{border-left-color:var(--rust);background:var(--rust-soft)}
+  .note b{color:var(--ink)}
+  table{border-collapse:collapse;width:100%;margin:10px 0;font-size:12.5px;
+    background:var(--panel);border:1px solid var(--rule)}
+  th,td{border:1px solid var(--rule);padding:6px 9px;text-align:left;vertical-align:top}
+  th{background:var(--panel-2);font-weight:600;white-space:nowrap}
+  td code{background:transparent;border:none;padding:0}
+  .toc{background:var(--panel);border:1px solid var(--rule);border-radius:4px;
+    padding:12px 16px;margin:14px 0;columns:2;column-gap:30px}
+  .toc a{display:block;color:var(--ink-2);text-decoration:none;padding:3px 0;
+    border-bottom:1px dotted transparent}
+  .toc a:hover{color:var(--moss)}
+  .toc ol{margin:0;padding-left:18px}
+  .kbd{display:inline-block;font-family:var(--mono);font-size:11.5px;
+    border:1px solid var(--rule-2);border-bottom-width:2px;border-radius:3px;
+    padding:0 5px;background:var(--panel-2);color:var(--ink)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media (max-width:760px){ .grid2{grid-template-columns:1fr} .toc{columns:1} }
+  .step{display:flex;gap:10px;margin:9px 0;align-items:flex-start}
+  .step .n{flex:0 0 auto;width:20px;height:20px;border-radius:50%;
+    background:var(--moss);color:#fff;font-size:11.5px;display:flex;
+    align-items:center;justify-content:center;margin-top:2px}
+  .step .t{flex:1}
+  .foot{margin-top:40px;padding-top:14px;border-top:1px solid var(--rule);
+    color:var(--ink-3);font-size:12px}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <div class="inner">
+    <img src="/static/icon.png" alt="" />
+    <b>Browser QGIS</b><span class="sub">· 使用帮助</span>
+    <span class="spacer"></span>
+    <a href="/">回到控制台</a>
+    <a href="/docs" target="_blank">接口文档</a>
+    <a href="/demo" target="_blank">接入示例</a>
+  </div>
+</div>
+
+<div class="wrap">
+
+<h1>怎么用 Browser QGIS</h1>
+<p class="lead">
+把 PyQGIS 内核搬到网页上的通用 GIS 工作台：浏览器里就是 QGIS 的样子（菜单栏、两排工具栏、
+图层树、右侧属性面板、状态栏），底下跑的是真的 QGIS 3.44，440 个 Processing 算法都能用。
+</p>
+
+<div class="toc">
+  <ol>
+    <li><a href="#s1">三分钟上手</a></li>
+    <li><a href="#s2">界面分区</a></li>
+    <li><a href="#s3">常用操作</a></li>
+    <li><a href="#s4">快捷键</a></li>
+    <li><a href="#s5">工具箱（Processing）</a></li>
+    <li><a href="#s6">Python 控制台与插件</a></li>
+    <li><a href="#s7">数据与空间</a></li>
+    <li><a href="#s8">图形启动器</a></li>
+    <li><a href="#s9">给别的系统接入</a></li>
+    <li><a href="#s10">常见问题</a></li>
+    <li><a href="#s11">管理员分区与共享账号</a></li>
+    <li><a href="#s12">自己跑一遍自检</a></li>
+  </ol>
+</div>
+
+<h2 id="s1">三分钟上手</h2>
+
+<div class="step"><div class="n">1</div><div class="t">
+  <b>把服务起起来。</b>在项目目录双击 <code>start.bat</code>（或运行 <code>launcher.bat</code>
+  用图形界面管服务）。等窗口里出现<b>「就绪」</b>再往下走 —— 启动要十几秒，
+  这期间接口会回 503，是正常的。</div></div>
+
+<div class="step"><div class="n">2</div><div class="t">
+  <b>打开控制台。</b>浏览器访问 <code>http://127.0.0.1:8848/</code>；
+  局域网内别的机器用本机 IP，例如 <code>http://192.168.1.20:8848/</code>。
+  第一次要登录 —— 登录页上有一块「共享超级账号」，写着用哪组口令直接登；
+  没有的话看项目目录的 <code>data/admin_password.txt</code>。</div></div>
+
+<div class="step"><div class="n">3</div><div class="t">
+  <b>加数据。</b>两条路：把 <code>.tif</code> / <code>.geojson</code> / <code>.gpkg</code> /
+  <code>.shp</code> <b>直接拖到地图上</b>（最省事），或者用
+  <b>＋ → 本地文件</b> 选文件上传、再从「服务器共享数据」里勾选加入。</div></div>
+
+<div class="step"><div class="n">4</div><div class="t">
+  <b>干活。</b>点地图要素做识别；用顶部第一排的导航工具缩放；
+  右侧切到<b>工具箱</b>跑 Processing 算法（缓冲区、裁剪、重投影…），跑完的结果能一键加回地图。</div></div>
+
+<div class="note">
+  <b>数据格式：</b>栅格 <code>.tif/.tiff/.img/.vrt</code>；
+  矢量 <code>.geojson/.gpkg/.shp/.gml/.kml</code>。
+  <b>矢量/栅格不用自己分</b> —— 上传后服务端按扩展名自动识别，混着传也行。
+</div>
+
+<h2 id="s2">界面分区</h2>
+
+<div class="grid2">
+  <div class="card">
+    <h3>顶部菜单栏</h3>
+    <p><b>文件</b>：添加图层 / 重新扫描数据目录 / 清空地图 / 服务信息<br>
+    <b>编辑</b>：移除选中图层 / 清除识别结果<br>
+    <b>视图</b>：缩放至图层、缩放到选择、全图、上一个/下一个范围、地图提示<br>
+    <b>图层</b>：图层属性、缩放至图层、移至最前/最后、移除图层<br>
+    <b>帮助</b>：本帮助 / 关于本服务</p>
+  </div>
+  <div class="card">
+    <h3>两排工具栏（QGIS 桌面版同款）</h3>
+    <p><b>第一排 · 地图导航</b>：平移、放大、缩小、缩放到图层、缩放到选择、全图、
+    上一个范围、下一个范围、按比例缩放（1:N）、地图提示、刷新<br>
+    <b>第二排 · 图层 / 编辑 / 选择</b>：添加图层、打开属性表、字段统计 ‖
+    切换编辑、保存编辑、放弃编辑、添加要素、删除选中、字段计算器 ‖
+    全选、取消选择、反选、按表达式选择、按空间关系选择</p>
+  </div>
+  <div class="card">
+    <h3>左栏：图层</h3>
+    <p>当前地图上的图层树。<b>＋</b> 加图层、<b>↑↓</b> 调整叠放顺序、<b>×</b> 移除。
+    点一行选中它，右键出菜单（缩放至图层 / 图层属性 / 移除图层）。</p>
+  </div>
+  <div class="card">
+    <h3>地图左上角浮动条</h3>
+    <p>就是 QGIS 的 <b>Map Tools</b>：<b>识别</b>（点图查要素）、<b>测距</b>、<b>测量面积</b>。
+    导航类的按钮都在顶部第一排，两边不重复。</p>
+  </div>
+  <div class="card">
+    <h3>右栏：九个面板</h3>
+    <p><b>识别结果</b>（点图命中的要素）、<b>图层属性</b>（常规/符号系统/透明度/源）、
+    <b>工具箱</b>（Processing）、<b>属性表</b>、<b>统计</b>、<b>选择</b>、
+    <b>书签</b>、<b>日志</b>、<b>处理历史</b>。
+    管理员登录后还会多一页<b>「管理员」</b>（账号 / 空间 / 审计 / 配置）——
+    <b>普通用户看不到这一页</b>。</p>
+  </div>
+  <div class="card">
+    <h3>底部状态栏</h3>
+    <p>光标坐标、<b>实体刻度比例尺</b>（1:N）、比例尺、CRS、图层数、QGIS 版本、状态提示。</p>
+  </div>
+</div>
+
+<div class="note">
+  <b>面板大小可以拖着改：</b>左右侧栏的宽度、工具箱里「算法列表 / 参数区」之间的高度、
+  「添加图层」对话框的大小和左侧数据源树的宽度，都<b>拖边框</b>就能改。
+  把手能聚焦，<span class="kbd">←</span> <span class="kbd">→</span> 微调，
+  <b>双击恢复默认</b>；改完会记住，刷新还在。
+</div>
+
+<h2 id="s3">常用操作</h2>
+
+<h3>加图层</h3>
+<ul>
+  <li><b>拖到地图上</b>：文件直接拖进地图窗口就上传并加载（QGIS 的拖放行为）。</li>
+  <li><b>＋ → 本地文件</b>：选文件 → 选空间（个人/共享）→ 「打开」。</li>
+  <li><b>＋ → 服务器共享数据</b>：服务器上已有的图层，勾选后「打开」直接加载。</li>
+  <li><b>＋ → XYZ 瓦片 / WMS</b>：填 URL 模板，瓦片不进 Processing 的输入。</li>
+</ul>
+
+<h3>查看数据</h3>
+<ul>
+  <li><b>识别</b>：点地图 → 右栏「识别结果」列出命中的要素。</li>
+  <li><b>属性表</b>：右栏 → 切图层、下拉选图层、过滤表达式、分页看行。</li>
+  <li><b>统计</b>：选图层后按字段给计数、均值、中位数、分组高频值。</li>
+</ul>
+
+<h3>编辑</h3>
+<ul>
+  <li>工具栏「切换编辑」进入编辑模式 → 添加要素 / 删除选中 → <b>保存编辑</b>提交；
+    <b>放弃编辑</b>回滚（没保存的改动会丢）。</li>
+  <li><b>字段计算器</b>：按表达式批量写字段（中文字段名要用双引号包起来）。</li>
+</ul>
+
+<h3>选要素</h3>
+<ul>
+  <li>全选 / 取消选择 / 反选；<b>按表达式选择</b>（QGIS 表达式语法）；
+    <b>按空间关系选择</b>（相交、包含、位于内部…）。</li>
+  <li>选中的要素在地图上高亮，缩放到选择在第一排。</li>
+</ul>
+
+<h3>书签</h3>
+<p>「书签」面板 →「新建」把当前地图范围存成一个书签，点书签名直接飞过去。</p>
+
+<h2 id="s4">快捷键</h2>
+
+<table>
+  <tr><th>键</th><th>作用</th><th>键</th><th>作用</th></tr>
+  <tr><td><span class="kbd">P</span></td><td>平移</td><td><span class="kbd">A</span></td><td>添加图层</td></tr>
+  <tr><td><span class="kbd">I</span></td><td>识别要素</td><td><span class="kbd">Del</span></td><td>移除选中图层</td></tr>
+  <tr><td><span class="kbd">R</span></td><td>测距</td><td><span class="kbd">Esc</span></td><td>关闭弹层</td></tr>
+  <tr><td><span class="kbd">T</span></td><td>测量面积</td><td><span class="kbd">+</span> / <span class="kbd">−</span></td><td>放大 / 缩小</td></tr>
+  <tr><td><span class="kbd">Ctrl</span>+<span class="kbd">`</span></td><td>开合 Python 控制台</td><td><span class="kbd">Enter</span> / <span class="kbd">Shift</span>+<span class="kbd">Enter</span></td><td>控制台里执行 / 换行</td></tr>
+</table>
+
+<h2 id="s5">工具箱（Processing）</h2>
+
+<p>右栏 → <b>工具箱</b>，或者顶栏第二排的「工具箱」按钮。里面是 <b>QGIS 的 440 个 Processing 算法</b>
+（缓冲区、裁剪、重投影、栅格统计、矢量化…），行为和 QGIS 桌面版一致。</p>
+
+<ol>
+  <li>在上方搜索框搜算法名 —— <b>中文名和英文名都能搜</b>（搜 <code>buffer</code> 和搜 <code>缓冲区</code> 结果一样）。</li>
+  <li>点中一个算法，下方自动生成参数表单：图层下拉、数字框、枚举下拉…</li>
+  <li>填完点<b>「运行算法」</b>。作业在后台跑，状态栏和「处理历史」里能看到进度。</li>
+  <li>跑完的结果可以<b>直接加到地图</b>，也可以下载。</li>
+</ol>
+
+<div class="note">
+  枚举参数的取值要按<b>界面显示的中文</b>来（比如「圆角」），提交时服务端会自己认；
+  栅格输入需要先在地图上加好图层。
+</div>
+
+<h2 id="s6">Python 控制台与插件</h2>
+
+<p>这两样都是把服务端「打开」给你。<b>它们都等于在数据服务器上执行任意代码</b>，
+所以能不能用由服务端的配置决定 —— 本机这套默认<b>对所有登录用户开放</b>；
+看不到这一节，说明你的账号没有这个权限。</p>
+
+<h3>Python 控制台</h3>
+
+<p>「视图 → Python 控制台」（快捷键 <span class="kbd">Ctrl</span>+<span class="kbd">`</span>）
+拉起一个贴底的抽屉，和 QGIS 桌面版的 Python Console 一个位置。</p>
+
+<pre><code>&gt;&gt;&gt; project().mapLayers().keys()      # 直接摸当前工程
+&gt;&gt;&gt; layer = QgsVectorLayer("data/shared/example/x.gpkg|图层名", "x", "ogr")
+&gt;&gt;&gt; print(layer.featureCount())
+&gt;&gt;&gt; print(QgsProject.instance().crs().authid())</code></pre>
+
+<ul>
+  <li><b>命名空间是持久的</b>：上一次定义的变量还在，可以接着用。</li>
+  <li><b>按人隔离</b>：A 用户的变量不会出现在 B 用户那儿。</li>
+  <li><b>能摸真 QGIS</b>：代码在 QGIS 工作线程上跑，图层、要素、算法都能用。</li>
+  <li><b>危险调用被挡住</b>：<code>os._exit()</code> / <code>os.abort()</code> /
+      <code>os.exec*()</code> 会直接结束（或替换）服务进程，控制台里会报错拦下 ——
+      防的是手滑。</li>
+  <li><b>Enter 执行、Shift+Enter 换行</b>，可以用 ↑ ↓ 翻历史命令。</li>
+</ul>
+
+<div class="note">
+  代码跑在 QGIS 工作线程上，Python 没法中断一个正在跑的线程 ——
+  死循环的代码<b>超时后接口会返回，但那个线程还占着</b>，QGIS 相关的请求会跟着卡住。
+  遇到这种情况只能重启服务。
+</div>
+
+<h3>插件</h3>
+
+<p>插件是装在 <code>plugins/</code> 下的一个 Python 包，能往服务里加：</p>
+
+<table>
+  <tr><th>能力</th><th>说明</th></tr>
+  <tr><td><b>右栏面板</b></td><td>插件自己提供内容，右栏多一个标签页</td></tr>
+  <tr><td><b>菜单项</b></td><td>菜单栏多一项</td></tr>
+  <tr><td><b>自己的接口</b></td><td>注册 REST 端点，前端或其它系统都能调</td></tr>
+  <tr><td><b>Processing 算法</b></td><td>自动出现在工具箱里，和 QGIS 自带的并列</td></tr>
+</table>
+
+<p><b>怎么装</b>：把插件目录拷进 <code>plugins/</code> 后重启服务；
+或者在网页上「插件 → 安装插件」上传一个 <code>.zip</code>（像 QGIS 插件管理器）。</p>
+
+<p><b>谁能管</b>：装 / 启停 / 重载 / 卸载只有管理员能做 —— 插件是服务端代码。
+改完代码可以「重载」，不用重启服务。</p>
+
+<p>项目自带一个示例插件 <code>plugins/gisds_hello/</code>，
+把插件能做的每件事都用了一遍，可以拿来当模板。</p>
+
+<h2 id="s7">数据与空间</h2>
+
+<table>
+  <tr><th>空间</th><th>谁能看到</th><th>谁能写</th><th>位置</th></tr>
+  <tr><td><b>共享空间</b></td><td>所有登录用户</td><td>所有登录用户</td><td><code>data/shared/&lt;数据集&gt;/</code></td></tr>
+  <tr><td><b>个人空间</b></td><td>只有本人</td><td>只有本人</td><td><code>data/users/&lt;用户ID&gt;/&lt;数据集&gt;/</code></td></tr>
+</table>
+
+<ul>
+  <li>一个目录 = 一个数据集；一个数据集里可以放多个文件（一个 <code>.tif</code>，
+      或 <code>.shp</code> + <code>.dbf</code> + <code>.shx</code> + <code>.prj</code> 一套）。</li>
+  <li>管理员能看见所有空间；免登录模式下所有人都只共享空间。</li>
+  <li>文件放在磁盘上直接也会被扫到（改完目录点菜单「文件 → 重新扫描数据目录」即可）。</li>
+</ul>
+
+<h2 id="s8">图形启动器</h2>
+
+<p>不想碰命令行就双击 <code>launcher.bat</code>。它能：</p>
+<ul>
+  <li><b>启停 REST 服务</b>，并显示「停止中 / 启动中 / 就绪」三态；</li>
+  <li><b>管理用户</b>（建号、改口令、停用、删除）；</li>
+  <li><b>浏览与上传文件</b>：每个数据空间都能看、能传、能下载、能删（也能单独开一个文件浏览器窗口）。</li>
+</ul>
+<p>顶栏「<b>服务密钥</b>」是多机部署的救生圈：管理员人在另一台机器、忘了 admin 口令时，
+填服务端 <code>config.json</code> 里的 <code>api_key</code> 就能进去重置任意账号的口令。</p>
+
+<h2 id="s9">给别的系统接入</h2>
+
+<table>
+  <tr><th>方式</th><th>在哪</th><th>说明</th></tr>
+  <tr><td><b>REST</b></td><td><code>/docs</code></td><td>Swagger 文档，全部接口带参数说明，可直接试。</td></tr>
+  <tr><td><b>接入示例</b></td><td><code>/demo</code></td><td>一页可运行的示例：列数据集、点查询、范围统计、出图、瓦片、GeoJSON。代码可直接抄走。</td></tr>
+  <tr><td><b>MCP</b></td><td><code>mcp.bat</code></td><td>stdio 方式，27 个工具（数据集、图层、查询、统计、渲染、算法、带编辑与书签），可挂到支持 MCP 的客户端里。</td></tr>
+</table>
+
+<p>两个探针 handy：<code>/healthz</code> 是<b>存活</b>（进程在就 200，启动期间也 200），
+<code>/readyz</code> 是<b>就绪</b>（没准备好回 503，好了回 200）。监控用前者，
+等干活用后者。</p>
+
+<h2 id="s10">常见问题</h2>
+
+<h3>导入的图看不见 / 地图上什么都没有</h3>
+<ul>
+  <li><b>先刷新页面</b>（<span class="kbd">Ctrl</span>+<span class="kbd">F5</span> 强刷）。</li>
+  <li>栅格要<b>登录</b>才能出图；没登录时接口回 401，界面会是一片空白且不报错。</li>
+  <li>看看状态栏有没有告警，比如「图层 xxx.tif 没有坐标系信息，已按 EPSG:4326 解释」。
+      没有 CRS 定义的 tif 现在会自动按 WGS84 解释并提示；如果它本该是投影坐标，
+      带上正确的 <code>.prj</code> 或用 <code>gdalwarp</code> 转一下。</li>
+  <li>图层加上了但位置不对：看状态栏坐标对不对，范围不对就是坐标系的问题。</li>
+</ul>
+
+<h3>.shp 上传了却「没被识别成图层」</h3>
+<p>shapefile 是<b>一组文件</b>：<code>.shp</code> <code>.dbf</code> <code>.shx</code>
+<code>.prj</code> 缺一不可，<b>只传 .shp 是打不开的</b>。把整套一起选中上传即可。
+界面会明确告诉你「文件已保存但没能识别成图层」。</p>
+
+<h3>遥感影像打开后整片发紫</h3>
+<p>真彩色影像（Sentinel-2 这类多波段）现在按 <b>QGIS 桌面版的方式</b>合成显示，
+不会再发紫。</p>
+<ul>
+  <li>图层属性 → 「数据类型」写着<b>「真彩色（RGB 合成）」</b>就是这种影像。</li>
+  <li>符号系统面板里第一项是<b>「真彩色（QGIS 默认）」</b>，别改成单波段的那些
+      —— 单波段只看第 1 个波段，绿色通道会被压没，图就成了一片紫。</li>
+</ul>
+
+<h3>忘了管理员口令</h3>
+<ul>
+  <li>如果这台服务配了<b>共享超级账号</b>，登录页上会有一块「共享超级账号」，
+      上面直接写着账号和口令（见上面「管理员分区与共享账号」）。</li>
+  <li>项目目录的 <code>data/admin_password.txt</code> 记着当前有效口令。</li>
+  <li>命令行：<code>run-qgis-python.bat -m gisds set-password admin</code>。</li>
+  <li>远程（多机部署）：启动器顶栏「服务密钥」→ 填 <code>config.json</code> 里的 <code>api_key</code>。</li>
+</ul>
+
+<h3>服务起不来 / 端口被占</h3>
+<p>8848 被别的程序占了就换端口：改 <code>config.json</code> 的 <code>port</code>，或设环境变量
+<code>GISDS_PORT</code>。启动器有就绪三态，「启动中」别当成失败。</p>
+
+<h3>改了前端，页面没变</h3>
+<p>以前要 Ctrl+F5 强刷，现在网页资源都带 <code>Cache-Control: no-cache</code>，
+<b>普通刷新就会校验</b>，改了立刻生效。</p>
+
+<h3>中文图层名 / 分类显示成英文</h3>
+<p>算法名与分类名来自 QGIS 官方翻译包；没装翻译包时显示英文原名。
+分类表在数据集目录的 <code>metadata.json</code> 里可以自己写。</p>
+
+<h2 id="s11">管理员分区与共享账号</h2>
+
+<h3>共享超级账号</h3>
+<p>这台服务<b>可以</b>配置一个<b>所有人都能用的管理员账号</b>：在
+<code>config.json</code> 的 <code>super_admin_password</code> 里填一个口令即可
+（默认是空的，也就是<b>不开</b>）。开了之后登录页上会有一块「共享超级账号」
+直接写着账号和口令，点「填入表单」就能登录。</p>
+
+<div class="note">
+  <b>请当心这个账号。</b>拿到这组口令的人就是管理员 —— 能开号、能停用别人的账号、
+  能删数据、能跑 Python。服务默认监听 <code>0.0.0.0</code>（局域网内谁都能访问），
+  所以这条口令等于把管理员身份发给整栋楼。<b>要收紧</b>就把
+  <code>config.json</code> 里的 <code>super_admin_password</code> 清空，
+  或把服务收到内网 / 反代后面。
+</div>
+
+<h3>管理员分区（右栏最后一页）</h3>
+<p>用管理员账号登录后，右栏多一页<b>「管理员」</b>。<b>普通用户看不到这一页</b> ——
+不是点了报错，是压根不渲染。</p>
+
+<table>
+  <tr><th>分区</th><th>能干什么</th></tr>
+  <tr><td><b>用户</b></td><td>列出全部账号；新建；设为管理员 / 降为普通用户；
+      停用 / 启用；改密码；删除（两步确认，不能删自己）</td></tr>
+  <tr><td><b>空间</b></td><td>各空间登记在册的数据集、图层数与磁盘路径</td></tr>
+  <tr><td><b>审计</b></td><td>最近 200 条审计日志（登录、改密、建号、删号…）</td></tr>
+  <tr><td><b>配置</b></td><td>监听地址、数据根目录、上传上限、<b>控制台开放模式</b>，
+      以及共享超级账号的风险提示</td></tr>
+</table>
+
+<p>「用户」分区顶部有一条醒目提示：共享超级账号开着的时候，会直接写明
+「同网段任何人拿它登录都是管理员」，并告诉你要收紧该改哪个配置项。</p>
+
+<h2 id="s12">自己跑一遍自检</h2>
+
+<p>改完代码想确认没弄坏东西，在项目目录跑：</p>
+<pre><code>powershell -ExecutionPolicy Bypass -File tests\run_all_checks.ps1</code></pre>
+<p>23 支自检脚本、900 多条断言，覆盖内核、接口、鉴权、MCP、网页 UI、瓦片坐标、口令备忘、Python 控制台、插件系统等。
+跑完会顺手体检：工作区有没有留垃圾、有没有孤儿服务进程、<b>正式实例还活着没有</b>。</p>
+
+<div class="foot">
+  Browser QGIS —— 基于 PyQGIS 3.44 的通用 GIS 数据服务。
+  详细说明见项目目录的 <code>README.md</code>。
+</div>
+
+</div>
+</body>
+</html>

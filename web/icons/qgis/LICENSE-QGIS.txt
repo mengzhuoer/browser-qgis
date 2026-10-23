@@ -1,0 +1,82 @@
+QGIS 图标资源（来源与许可）
+==========================
+
+本目录下的 SVG 文件**全部取自 QGIS 官方源码仓库**，未做修改：
+
+    来源仓库：https://github.com/qgis/QGIS
+    分支：     release-3_44
+    路径：     images/themes/default/
+    对应版本： QGIS 3.44 LTR（本机安装 3.44.14-Solothrun）
+
+选取方式：按 QGIS `src/app/qgisapp.cpp` 的 `QgisApp::createActions()` 里
+`setIcon( QgsApplication::getThemeIcon( "/xxx.svg" ) )` 的实际对应关系取用，
+即「QGIS 的哪个按钮用哪个图标」，一一照搬，没有重画、没有近似。
+
+    平移            mActionPan.svg
+    放大 / 缩小     mActionZoomIn.svg / mActionZoomOut.svg
+    缩放到图层      mActionZoomToLayer.svg
+    缩放到选择      mActionZoomToSelected.svg
+    全图            mActionZoomFullExtent.svg
+    上一个范围      mActionZoomLast.svg
+    下一个范围      mActionZoomNext.svg
+    地图提示        mActionMapTips.svg
+    刷新            mActionRefresh.svg
+    识别            mActionIdentify.svg
+    测量距离        mActionMeasure.svg
+    测量面积        mActionMeasureArea.svg
+    数据源管理器    mActionDataSourceManager.svg
+    打开属性表      mActionOpenTable.svg
+    切换编辑        mActionToggleEditing.svg
+    保存编辑        mActionSaveEdits.svg
+    放弃编辑        mActionCancelEdits.svg
+    添加要素        mActionNewTableRow.svg
+    删除选中要素    mActionDeleteSelectedFeatures.svg
+    字段计算器      mActionCalculateField.svg
+    全选要素        mActionSelectAll.svg
+    取消选择        mActionDeselectAll.svg
+    反选            mActionInvertSelection.svg
+    按表达式选择    mIconExpressionSelect.svg
+    按空间关系选择  mActionSelectRadius.svg
+
+本目录共 **42** 个 SVG，上面列的是**当前 26 个在用的**（工具栏 23 + 浮动条 3）；
+另外 **16 个是备料**（QGIS 的其它动作，将来加按钮可直接取用，已在
+`ACTION-ICONS.txt` 的对照表里）：
+
+    mActionAddOgrLayer.svg      mActionAddRasterLayer.svg   mActionAllEdits.svg
+    mActionDeselectActiveLayer.svg  mActionMeasureAngle.svg mActionMeasureBearing.svg
+    mActionNewBookmark.svg      mActionOpenTableEdited.svg mActionOpenTableSelected.svg
+    mActionOpenTableVisible.svg mActionSelectFreehand.svg  mActionSelectPolygon.svg
+    mActionSelectRectangle.svg  mActionShowBookmarks.svg   mActionVertexTool.svg
+    mIconFormSelect.svg
+
+备料不放进 `web/panels.js` 的 `QGIS_ICON` 表就不会被引用 —— 页面只加载用到的那些。
+
+
+许可
+----
+
+QGIS 采用 **GNU General Public License v2 or later**（见 QGIS 仓库根目录的
+`COPYING`）。本目录下的 SVG 属于 QGIS 作品的一部分，因此本项目对外分发时
+必须随附 GPL 许可证全文（项目根目录的 `LICENSE`）与本说明文件。
+
+**但要说明白：图标并不是这里许可姿态的决定因素。**
+本项目整个架在 **PyQGIS** 上 —— 而 PyQGIS 的 Python 绑定本身就是 GPL v2+：
+
+    C:\Program Files\QGIS 3.44.14\apps\qgis-ltr\python\qgis\core\__init__.py
+      This program is free software; you can redistribute it and/or modify
+      it under the terms of the GNU General Public License ... version 2 ...
+      or (at your option) any later version.
+
+用了 GPL 的库，衍生作品就得按 GPL 分发 —— 这道门槛在**图标之前**。
+所以「把图标切回自绘」**并不能**让本项目闭源；切回自绘只关乎
+**保真度与工作量**（少一批外部资源、视觉改成自绘风格），不改变许可姿态。
+
+真要换回自绘，改动集中在 `web/panels.js` 的 `QGIS_ICON` 一张表
+（指向本目录的路径换成自绘图标名），删掉 `web/icons/qgis/` 即可。
+在 QGIS 桌面版本来就没有对应工具栏按钮的两个功能（「按比例缩放」、
+「字段统计」）现在已经是自绘的，可以看现成的写法。
+
+这些图标是按「GPL v2+」提供的，没有单独的例外条款。
+
+QGIS 是 OSGeo Foundation 的项目。QGIS 名称与标志另有独立的商标条款，
+本目录只包含通用界面图标，不含 QGIS 标志或品牌图形。

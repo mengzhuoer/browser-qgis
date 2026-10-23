@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Browser QGIS · 网页接入示例</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#161920; --panel-2:#1d2028; --line:#282c36;
+    --fg:#e6e8ec; --fg-dim:#9aa1ad; --fg-mute:#6b7280;
+    --accent:#10b981; --accent-2:#3b82f6;
+    --mono:"JetBrains Mono",Consolas,"Courier New",monospace;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;padding:0 0 60px;background:var(--bg);color:var(--fg);
+    font:14px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 22px}
+  header{padding:30px 0 20px;border-bottom:1px solid var(--line);margin-bottom:26px}
+  h1{font-size:23px;margin:0 0 8px;font-weight:650;letter-spacing:.3px}
+  h1 span{color:var(--accent)}
+  h2{font-size:16px;margin:32px 0 10px;font-weight:600}
+  p{color:var(--fg-dim);margin:0 0 12px}
+  code,kbd{font-family:var(--mono);font-size:12.5px;background:var(--panel-2);
+    border:1px solid var(--line);border-radius:4px;padding:1px 5px;color:#a7f3d0}
+  pre{
+    background:#0b0d10;border:1px solid var(--line);border-radius:9px;padding:14px;
+    font-family:var(--mono);font-size:12.5px;color:#cbd5e1;overflow:auto;margin:0 0 10px;
+    line-height:1.6;
+  }
+  pre .k{color:#c084fc} pre .s{color:#86efac} pre .n{color:#fbbf24}
+  pre .c{color:#64748b} pre .f{color:#7dd3fc}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:16px 18px;margin-bottom:18px}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+  .btn{
+    padding:7px 14px;border-radius:7px;cursor:pointer;background:var(--panel-2);
+    border:1px solid var(--line);color:var(--fg);font-size:13px;font-family:inherit;
+  }
+  .btn:hover{border-color:#3a3f4b;background:#232733}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#052e20;font-weight:600}
+  .out{
+    background:#0b0d10;border:1px solid var(--line);border-radius:8px;padding:11px;
+    font-family:var(--mono);font-size:11.5px;color:#cbd5e1;white-space:pre-wrap;
+    word-break:break-word;max-height:260px;overflow:auto;
+  }
+  .tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;
+    background:var(--panel-2);border:1px solid var(--line);color:var(--fg-dim);margin-right:6px}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:6px}
+  th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line)}
+  th{color:var(--fg-mute);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.6px}
+  td code{background:transparent;border:none;padding:0;color:#7dd3fc}
+  a{color:var(--accent-2)}
+  .note{background:rgba(16,185,129,.07);border:1px solid rgba(16,185,129,.25);
+    border-radius:9px;padding:12px 14px;font-size:13px;color:var(--fg-dim);margin-bottom:16px}
+  .note b{color:var(--accent)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media (max-width:820px){ .grid{grid-template-columns:1fr} }
+  .imgres{margin-top:10px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#0b0d10}
+  .imgres img{display:block;width:100%}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Browser QGIS<span> · </span>网页接入示例</h1>
+  <p>这一页本身就是接入示范：它不是服务渲染的静态页面，而是<b>用 <code>fetch()</code> 实时调用</b>接口取数据、拼结果。下面每一段都可以直接复制到你自己的网页里。</p>
+  <div class="row">
+    <span class="tag">服务地址</span><code id="base">…</code>
+    <a href="/docs" target="_blank">接口文档 /docs</a>
+    <a href="/" target="_blank">控制台 /</a>
+  </div>
+</header>
+
+<div class="note">
+  <b>跨域已开启</b>（CORS <code>allow_origins: ["*"]</code>），因此其它网页直接 <code>fetch("http://&lt;本机IP&gt;:8848/api/...")</code> 即可，
+  不需要任何服务端代理。局域网内其它设备用本机 IP 访问同一端口。
+</div>
+
+<h2>1 · 列出数据集与图层</h2>
+<div class="card">
+  <div class="row">
+    <button class="btn primary" onclick="run('datasets')">运行</button>
+    <span class="muted" id="s-datasets"></span>
+  </div>
+<pre><span class="c">// 列出所有数据集</span>
+<span class="k">const</span> r = <span class="k">await</span> fetch(<span class="s">`${BASE}/api/datasets`</span>);
+<span class="k">const</span> { datasets } = <span class="k">await</span> r.json();
+
+<span class="c">// 某个数据集的图层清单（含类别表、坐标系、范围）</span>
+<span class="k">const</span> d = <span class="k">await</span> (<span class="k">await</span> fetch(<span class="s">`${BASE}/api/datasets/demo_mine`</span>)).json();
+<span class="k">const</span> layers = Object.<span class="f">values</span>(d.layers);</pre>
+  <div class="out" id="o-datasets">（点击「运行」查看实时返回）</div>
+</div>
+
+<h2>2 · 点查询：点击位置拿到地类</h2>
+<div class="card">
+  <div class="row">
+    <button class="btn primary" onclick="run('point')">运行</button>
+    <span class="muted" id="s-point"></span>
+  </div>
+<pre><span class="c">// 一次请求同时拿到所有栅格图层的取值 + 矢量命中</span>
+<span class="k">const</span> res = <span class="k">await</span> fetch(
+  <span class="s">`${BASE}/api/query/point?lon=112.48&amp;lat=39.685`</span>
+).then(r =&gt; r.json());
+
+res.rasters.<span class="f">forEach</span>(r =&gt; console.<span class="f">log</span>(r.layer_id, r.class_name ?? r.value));</pre>
+  <div class="out" id="o-point">（点击「运行」查看实时返回）</div>
+</div>
+
+<h2>3 · 范围统计：各类地面积多少</h2>
+<div class="card">
+  <div class="row">
+    <button class="btn primary" onclick="run('area')">运行</button>
+    <span class="muted" id="s-area"></span>
+  </div>
+<pre><span class="c">// 给一个经纬度范围，返回每一类的像元数与面积（公顷）</span>
+<span class="k">const</span> stats = <span class="k">await</span> fetch(
+  <span class="s">`${BASE}/api/rasters/demo_mine/landuse_2020/bbox`</span> +
+  <span class="s">`?minx=112.40&amp;miny=39.62&amp;maxx=112.56&amp;maxy=39.75`</span>
+).then(r =&gt; r.json());
+
+stats.classes.<span class="f">forEach</span>(c =&gt;
+  console.<span class="f">log</span>(c.name, c.area_ha.toFixed(1), <span class="s">'ha'</span>, (c.ratio*100).toFixed(1)+<span class="s">'%'</span>));</pre>
+  <div class="out" id="o-area">（点击「运行」查看实时返回）</div>
+</div>
+
+<h2>4 · 渲染成图片直接贴到网页</h2>
+<div class="grid">
+  <div class="card">
+    <div class="row"><button class="btn primary" onclick="run('render')">运行</button></div>
+<pre><span class="c">// 服务端直接出 PNG，当成普通图片用即可</span>
+&lt;<span class="k">img</span> src=<span class="s">`${BASE}/api/render/raster/demo_mine/landuse_2020.png?width=800`</span> /&gt;</pre>
+    <div class="imgres" id="imgbox"></div>
+  </div>
+  <div class="card">
+    <div class="row"><button class="btn primary" onclick="run('tile')">运行</button></div>
+<pre><span class="c">// 也可以当作 XYZ 瓦片源，直接喂给 Leaflet / MapLibre</span>
+<span class="k">const</span> tiles = L.tileLayer(<span class="s">`${BASE}/api/tiles/demo_mine/landuse_2020/{z}/{x}/{y}.png`</span>, {
+  minZoom: 8, maxZoom: 16
+}).addTo(map);</pre>
+    <div class="out" id="o-tile">（点击「运行」查看瓦片地址与状态）</div>
+  </div>
+</div>
+
+<h2>5 · 矢量要素：拿 GeoJSON 自己画</h2>
+<div class="card">
+  <div class="row">
+    <button class="btn primary" onclick="run('vector')">运行</button>
+    <span class="muted" id="s-vector"></span>
+  </div>
+<pre><span class="c">// 返回标准 GeoJSON，坐标系已统一为 WGS84</span>
+<span class="k">const</span> gj = <span class="k">await</span> fetch(
+  <span class="s">`${BASE}/api/vectors/demo_mine/aoi/features?limit=100`</span>
+).then(r =&gt; r.json());
+
+<span class="c">// Leaflet</span>
+L.geoJSON(gj).addTo(map);
+<span class="c">// MapLibre</span>
+map.getSource(<span class="s">'aoi'</span>).setData(gj);</pre>
+  <div class="out" id="o-vector">（点击「运行」查看实时返回）</div>
+</div>
+
+<h2>接口速查</h2>
+<div class="card">
+<table>
+<thead><tr><th style="width:52%">接口</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td><code>GET /api/datasets</code></td><td>数据集列表</td></tr>
+<tr><td><code>GET /api/datasets/{id}</code></td><td>数据集详情（全部图层与类别表）</td></tr>
+<tr><td><code>GET /api/datasets/{id}/overview</code></td><td>各地图层的地类面积概览</td></tr>
+<tr><td><code>POST /api/datasets/rescan</code></td><td>重新扫描数据目录</td></tr>
+<tr><td><code>GET /api/rasters/{ds}/{layer}/point</code></td><td>点查询（lon / lat）</td></tr>
+<tr><td><code>GET /api/rasters/{ds}/{layer}/bbox</code></td><td>范围统计（minx/miny/maxx/maxy）</td></tr>
+<tr><td><code>POST /api/rasters/{ds}/{layer}/polygon</code></td><td>多边形统计（body 传顶点环）</td></tr>
+<tr><td><code>GET /api/rasters/{ds}/{layer}/area</code></td><td>地类面积</td></tr>
+<tr><td><code>GET /api/rasters/{ds}/{layer}/histogram</code></td><td>像元直方图</td></tr>
+<tr><td><code>GET /api/vectors/{ds}/{vec}/features</code></td><td>要素 GeoJSON（bbox / limit / where）</td></tr>
+<tr><td><code>GET /api/vectors/{ds}/{vec}/stats</code></td><td>矢量统计</td></tr>
+<tr><td><code>GET /api/vectors/{ds}/{vec}/hit</code></td><td>点命中</td></tr>
+<tr><td><code>GET /api/render/raster/{ds}/{layer}.png</code></td><td>栅格出图</td></tr>
+<tr><td><code>GET /api/render/vector/{ds}/{vec}.png</code></td><td>矢量出图</td></tr>
+<tr><td><code>GET /api/render/combined/{ds}.png</code></td><td>多图层叠加出图</td></tr>
+<tr><td><code>GET /api/tiles/{ds}/{layer}/{z}/{x}/{y}.png</code></td><td>XYZ 瓦片</td></tr>
+<tr><td><code>GET /api/query/point</code></td><td>栅格 + 矢量综合点查询</td></tr>
+<tr><td><code>GET /api/meta</code> · <code>GET /healthz</code></td><td>服务信息与健康检查</td></tr>
+</tbody></table>
+</div>
+</div>
+
+<script>
+const BASE = location.origin;
+document.getElementById("base").textContent = BASE;
+
+async function j(path){
+  const res = await fetch(BASE+path);
+  if(!res.ok) throw new Error(res.status+" "+res.statusText);
+  return res.json();
+}
+
+const RUNNERS = {
+  async datasets(){
+    const d = await j("/api/datasets");
+    const first = d.datasets[0];
+    const detail = first ? await j("/api/datasets/"+first.id) : null;
+    return {
+      "数据集": d.datasets.map(x=>({id:x.id, 名称:x.name, 栅格:x.raster_count, 矢量:x.vector_count})),
+      "首个数据集的图层": detail ? Object.entries(detail.layers).map(([k,v])=>({
+        id:k, kind:v.kind, 尺寸:`${v.width}x${v.height}`, crs:v.crs, 类别数:Object.keys(v.classes||{}).length
+      })) : []
+    };
+  },
+  async point(){
+    return await j("/api/query/point?lon=112.48&lat=39.685");
+  },
+  async area(){
+    return await j("/api/rasters/demo_mine/landuse_2020/bbox?minx=112.40&miny=39.62&maxx=112.56&maxy=39.75");
+  },
+  async render(){
+    const url = "/api/render/raster/demo_mine/landuse_2020.png?width=760";
+    const res = await fetch(BASE+url);
+    if(!res.ok) throw new Error(res.status);
+    const blob = await res.blob();
+    document.getElementById("imgbox").innerHTML =
+      `<img src="${URL.createObjectURL(blob)}" alt="土地利用渲染结果">`;
+    return {状态:"已渲染", 类型:res.headers.get("content-type"), 字节数:blob.size};
+  },
+  async tile(){
+    const z=13, x=6655, y=3110;
+    const url = `/api/tiles/demo_mine/landuse_2020/${z}/${x}/${y}.png`;
+    const res = await fetch(BASE+url);
+    return {地址:BASE+url, 状态:res.status, 类型:res.headers.get("content-type"), 字节数:(await res.blob()).size};
+  },
+  async vector(){
+    const gj = await j("/api/vectors/demo_mine/aoi/features?limit=100");
+    return {类型:gj.type, 要素数:gj.count, 坐标系:gj.crs, 首个要素:gj.features[0]};
+  }
+};
+
+async function run(key){
+  const out = document.getElementById("o-"+key);
+  const status = document.getElementById("s-"+key);
+  if(status) status.textContent = "运行中…";
+  try{
+    const data = await RUNNERS[key]();
+    out.textContent = JSON.stringify(data, null, 2);
+    if(status) status.textContent = "完成";
+  }catch(e){
+    out.textContent = "错误：" + e.message;
+    if(status) status.textContent = "失败";
+  }
+}
+</script>
+</body>
+</html>

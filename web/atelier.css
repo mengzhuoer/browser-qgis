@@ -1,0 +1,286 @@
+/* ===================================================================
+ * 制图桌 · 精修层
+ *
+ * 风格沿用「制图工坊」本来的规矩：纸面浅灰、1px 细线、零阴影。
+ * 这一层**只改观感，不改结构** —— 所有 id / class 都保持原样，
+ * 自检脚本（check_webui / check_ui_paths / check_web_merge）照常过。
+ *
+ * 它只做三件事，每件都从这个活儿的本身来：
+ *
+ *   ① 数字升成一等公民。
+ *      坐标、比例尺、要素数、面积、参数值 —— 这个控制台说到底是个
+ *      「读数的仪器」。数字统一用等宽 + 表格数字（tabular-nums）：
+ *      位数对齐了才能一眼比大小，这是比例尺的读法。
+ *      数字前面加一道短竖线（刻度），表示「这里是一个量」。
+ *
+ *   ② 输入区是「刻进纸里的槽」，不是「贴在纸上的盒子」。
+ *      底色深一线、下边一道更重的线 —— 不用阴影，但比阴影更像一张图纸。
+ *
+ *   ③ 地图是一张**有图框的图**。
+ *      内外两道细线（图框）+ 四角的定位十字（moss）——
+ *      印刷图纸就是这么收边的；控件浮在图框里面，不打架。
+ *
+ * 刻意不做的事：不加渐变、不加**新的**阴影（弹窗那点投影本来就是有的，
+ * 这里只把它调柔了一档）、不加圆角泡泡、不换字体文件
+ * （这个产品要能在没网的局域网里用）。
+ * =================================================================== */
+
+/* ---------------------------------------------------------------- 令牌补充 */
+
+:root{
+  /* 最淡的一道内线（表格行之间、状态条格子之间） */
+  --rule-3:#E1E5DD;
+  /* 刻度线的颜色 */
+  --tick:#B4BDB0;
+  /* 图框与定位十字 */
+  --frame:rgba(60,72,62,.30);
+  --frame-in:rgba(60,72,62,.16);
+  --reg:rgba(44,107,79,.50);
+}
+
+/* ---------------------------------------------------------------- ① 数字 */
+
+  /* 这个控制台说到底是个读数仪器：坐标、比例尺、要素数、面积、参数值。
+     它们统一用等宽 + 表格数字 —— 位数对齐了才能一眼比大小。 */
+  .statusbar .cell b,
+  .panel-head .count,
+  .sec h2 .count,
+  .kv dd{
+    font-family:var(--mono);
+    font-variant-numeric:tabular-nums;
+    font-feature-settings:"tnum" 1;
+    letter-spacing:.005em;
+  }
+
+  /* 状态栏里的数：前面带一道刻度线，像比例尺边缘那种短竖线。
+     不说话，但一眼就知道那是刻度。 */
+  .statusbar .cell b{
+    position:relative;
+    padding-left:9px;
+    color:var(--ink);
+    font-weight:500;
+    font-size:11px;
+  }
+  .statusbar .cell b::before{
+    content:"";position:absolute;left:0;top:50%;margin-top:-5px;
+    width:1px;height:10px;background:var(--tick);
+  }
+  .statusbar .cell .lbl{color:var(--ink-3);font-size:11px}
+
+  /* 面板头上的计数（小徽标）也归到同一套读数语言里 */
+  .panel-head .count{
+    background:var(--panel);border:1px solid var(--rule);border-radius:8px;
+    padding:0 6px;font-size:10px;color:var(--ink-3);letter-spacing:0;
+  }
+  .sec h2 .count{
+    background:var(--panel);border:1px solid var(--rule);border-radius:8px;
+    padding:0 6px;font-size:10px;color:var(--ink-3);letter-spacing:0;
+  }
+
+  /* 算法名是人话（UI 字体），算法 id 是机器话（等宽）——
+     两者分清楚，才好让人照着 id 去命令行里敲。 */
+  body .algoitem .g{font-family:var(--mono);font-size:10px;letter-spacing:0}
+  body .statline .pc{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* ---------------------------------------------------------------- ② 凹槽 */
+
+  /* 输入区是刻进纸里的槽：底色比纸面深一线，下边一道更重的线。
+     不用阴影，但比阴影更像一张真正的图纸。 */
+  body .fld input[type=text],
+  body .fld input[type=number],
+  body .fld input[type=password],
+  body .fld select,
+  body .fld textarea,
+  body .fld input[type=file]{
+    background:var(--panel-2);
+    border:1px solid var(--rule);
+    border-bottom-color:var(--rule-2);
+  }
+  body .fld input[type=text]:focus,
+  body .fld input[type=number]:focus,
+  body .fld input[type=password]:focus,
+  body .fld select:focus,
+  body .fld textarea:focus,
+  body .fld input[type=file]:focus{
+    background:var(--panel);
+    border-color:var(--rule-2);
+    border-bottom-color:var(--moss);
+  }
+  body .fld input::placeholder,body .fld textarea::placeholder{color:#9AA39A}
+  body .fld .desc{color:#8D978D}
+  body .fld label{color:var(--ink-2)}
+
+  /* 按钮：一枚「键」。上边一道更亮的线 = 倒角（只用发丝线，不用阴影）。 */
+  .btn{
+    background:var(--panel);
+    border:1px solid var(--rule-2);
+    border-top-color:#C6CEC2;
+    transition:background .12s ease,border-color .12s ease;
+  }
+  .btn:hover{background:var(--panel-3);border-color:var(--ink-3);border-top-color:var(--ink-3)}
+  .btn:active{background:var(--panel-2);border-bottom-color:var(--rule)}
+  .btn.primary{background:var(--moss);border-color:var(--moss);border-top-color:#367A5B;color:#fff}
+  .btn.primary:hover{background:var(--moss-2);border-color:var(--moss-2);border-top-color:#2A6849}
+  .btn:disabled{opacity:.42;cursor:not-allowed}
+
+/* ---------------------------------------------------------------- ③ 图框 */
+
+  /* 地图是一张有图框的图：外一道细线，内一道细线（间隔 3px），
+     四角是 moss 色的定位十字 —— 印刷图纸就是这么收边的。
+     pointer-events:none，所以一点也不挡地图操作。 */
+  .mapwrap{position:relative}
+  .mapwrap::before{
+    content:"";position:absolute;inset:0;z-index:450;pointer-events:none;
+    border:1px solid var(--frame);
+    background-image:
+      linear-gradient(var(--reg),var(--reg)),linear-gradient(var(--reg),var(--reg)),
+      linear-gradient(var(--reg),var(--reg)),linear-gradient(var(--reg),var(--reg)),
+      linear-gradient(var(--reg),var(--reg)),linear-gradient(var(--reg),var(--reg)),
+      linear-gradient(var(--reg),var(--reg)),linear-gradient(var(--reg),var(--reg));
+    background-size:13px 1px,1px 13px,13px 1px,1px 13px,13px 1px,1px 13px,13px 1px,1px 13px;
+    background-position:
+      0 0,0 0,100% 0,100% 0,0 100%,0 100%,100% 100%,100% 100%;
+    background-repeat:no-repeat;
+  }
+  .mapwrap::after{
+    content:"";position:absolute;inset:3px;z-index:449;pointer-events:none;
+    border:1px solid var(--frame-in);
+  }
+  /* 浮动工具条往里挪一点，让开图框 */
+  body .map-tools{left:12px;top:12px}
+  body .map-msg{left:50px;top:12px}
+  body .map-hint{bottom:12px}
+
+  /* 比例尺那条线：把「刻度」的意味做足 —— 黑白交替的方格，本来就有，
+     边框再压实一点。 */
+  body .leaflet-control-scale-line{border-bottom:1px solid var(--ink-2)!important}
+
+/* ---------------------------------------------------------------- 右栏标签 */
+
+  /* 标签页是图纸右上角的索引条。当前那张「浮」在纸上，其余压着底线。 */
+  body aside.right .tabs{
+    background:var(--panel);
+    border-bottom:1px solid var(--rule-2);
+    padding:0 4px;
+  }
+  body aside.right .tab{
+    flex:0 0 auto;
+    padding:6px 10px;
+    font-size:12px;
+    color:var(--ink-3);
+    letter-spacing:.2px;
+    border-bottom:2px solid transparent;
+    transition:color .12s ease,background .12s ease;
+  }
+  body aside.right .tab:not(.on):hover{color:var(--ink-2);background:var(--panel-2)}
+  body aside.right .tab.on{
+    color:var(--ink);
+    background:var(--panel);
+    border-bottom-color:var(--moss);
+  }
+
+  /* 面板标题：一张纸的页眉 */
+  .panel-head{
+    height:28px;
+    background:var(--panel-2);
+    border-bottom:1px solid var(--rule);
+    font-size:10.5px;letter-spacing:.5px;color:var(--ink-2);
+  }
+  .panel-note{
+    background:var(--panel-2);
+    border-bottom:1px solid var(--rule-3);
+    color:var(--ink-3);
+  }
+  .sec{border-bottom:1px solid var(--rule-3)}
+  .sec h2{color:var(--ink-3);letter-spacing:.9px}
+
+/* ---------------------------------------------------------------- 工具条 */
+
+  /* 顶部图标工具条：按下去有落位感（挪 1px，不是缩放）。 */
+  body .toolbars button{transition:background .12s ease,color .12s ease}
+  body .toolbars button:active{transform:translateY(1px)}
+  body .toolbars .tb-group{position:relative}
+  body .toolbars .tb-sep{background:var(--rule-2)}
+
+/* ---------------------------------------------------------------- 表格 */
+
+  /* 表格是读数表：表头是标签，行是读数，数字右对齐。 */
+  body table.tbl th{
+    font-size:10.5px;letter-spacing:.5px;color:var(--ink-3);font-weight:600;
+    background:var(--panel-2);
+  }
+  body table.tbl td{padding:4px 7px;color:var(--ink-2)}
+  body table.tbl td.num{
+    text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;
+    font-feature-settings:"tnum" 1;
+  }
+  body table.tbl tbody tr:hover td{background:var(--panel-2)}
+  body table.tbl tr.sel td{background:var(--moss-soft)}
+  body .logbox{
+    background:var(--panel-2);border:1px solid var(--rule-3);
+    font-family:var(--mono);font-variant-numeric:tabular-nums;
+  }
+
+/* ---------------------------------------------------------------- 状态条 */
+
+  /* 状态条是这台仪器的读数条：一格一个量，格与格之间一道淡线。 */
+  .statusbar{
+    height:26px;
+    background:var(--panel);
+    border-top:1px solid var(--rule-2);
+    /* 左边给控制台把手条让出一段（它跟状态栏同排） */
+    padding-left:calc(var(--pc-left-pad,0px) + 10px);
+  }
+  .statusbar .cell{
+    padding:0 12px;
+    border-right:1px solid var(--rule-3);
+  }
+  .statusbar .cell:first-child{padding-left:0}
+  .statusbar .tip{color:var(--ink-3);padding-left:12px}
+  .sbar{border-color:var(--ink-2)}
+
+/* ---------------------------------------------------------------- 弹窗 */
+
+  /* 弹窗是摊在桌上的一张图：纸面 + 一道硬边 + 极轻的投影。 */
+  .modal{
+    background:var(--panel);
+    border:1px solid var(--rule-2);
+    border-radius:3px;
+    box-shadow:0 10px 30px rgba(30,36,32,.16);
+  }
+  .modal .mhead,.modal .modal-head{
+    background:var(--panel-2);
+    border-bottom:1px solid var(--rule);
+  }
+  .modal h3,.modal h2{letter-spacing:.3px}
+
+/* ---------------------------------------------------------------- 空态 */
+
+/* 空着的面板是「还没落笔的图纸」：给一层极淡的方格网。
+   只在**真的空**的时候出现 ——
+   #treeList 的 class 本身就是空/非空的标记（renderTree 会把它从 "hint" 改成 ""），
+   #identResult 则是内容里有没有那个 .muted 空提示。 */
+  #treeList.hint,
+  #identResult:has(> .muted){
+    background-image:
+      linear-gradient(rgba(120,132,118,.07) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(120,132,118,.07) 1px,transparent 1px);
+    background-size:16px 16px;
+    background-position:0 0;
+  }
+  #treeList.hint{color:var(--ink-3)}
+
+/* ---------------------------------------------------------------- 焦点与动效 */
+
+  /* 键盘焦点必须看得见 —— 这是底线，不是可选项。 */
+  :focus-visible{outline:2px solid var(--moss);outline-offset:1px;border-radius:2px}
+  body .fld input:focus-visible,body .fld select:focus-visible{outline-offset:-1px}
+
+  @media (prefers-reduced-motion:reduce){
+    *{transition-duration:.01ms!important;animation-duration:.01ms!important}
+  }
+
+  /* 窄屏：让三栏各让一步，地图先保住。 */
+  @media (max-width:1180px){
+    main{grid-template-columns:minmax(200px,var(--w-left,264px)) 1fr minmax(300px,var(--w-right,392px))}
+  }

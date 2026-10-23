@@ -1,0 +1,7 @@
+{
+  "name": "示例插件",
+  "version": "1.0.0",
+  "description": "演示插件 SDK 的各个能力：右栏面板、菜单项、自定义接口、动作、Processing 算法。",
+  "author": "Browser QGIS",
+  "enabled": true
+}

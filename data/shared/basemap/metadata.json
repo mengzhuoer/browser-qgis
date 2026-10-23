@@ -1,0 +1,31 @@
+{
+  "name": "世界底图（内置离线）",
+  "description": "Natural Earth 世界矢量数据，由本服务渲染成 XYZ 瓦片，完全离线可用。",
+  "crs": "EPSG:4326",
+  "vectors": {
+    "land": {
+      "file": "basemap.gpkg",
+      "sub_layer": "land",
+      "title": "陆地",
+      "source": "Natural Earth 50m"
+    },
+    "boundaries": {
+      "file": "basemap.gpkg",
+      "sub_layer": "boundaries",
+      "title": "国界",
+      "source": "Natural Earth 50m"
+    },
+    "lakes": {
+      "file": "basemap.gpkg",
+      "sub_layer": "lakes",
+      "title": "湖泊",
+      "source": "Natural Earth 110m"
+    },
+    "rivers": {
+      "file": "basemap.gpkg",
+      "sub_layer": "rivers",
+      "title": "河流",
+      "source": "Natural Earth 110m"
+    }
+  }
+}

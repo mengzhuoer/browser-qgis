@@ -1,0 +1,12 @@
+# Browser QGIS runtime requirements (web layer only).
+#
+# QGIS itself provides the geo stack (GDAL/PROJ/Qt, plus the qgis.* python
+# bindings). These packages are the HTTP + MCP layer that sits on top of it.
+#
+# They are installed into ./deps (not into the QGIS installation) and injected
+# via PYTHONPATH by run-qgis-python.bat -- see setup.ps1.
+
+fastapi>=0.115
+uvicorn[standard]>=0.30
+mcp>=1.2
+httpx>=0.27

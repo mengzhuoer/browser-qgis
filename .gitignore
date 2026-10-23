@@ -1,0 +1,84 @@
+# ==============================================================================
+# Browser QGIS —— 不该进版本库的东西
+#
+# 这个仓库要开源，所以**凡是「属于某台机器 / 某个用户」的运行时产物**都要挡住。
+# 最要紧的三类：
+#   ① 凭据   —— 账号库、口令备忘、配置文件里的明文口令
+#   ② 私有数据 —— data/users/ 下是某个用户自己的 GIS 数据（几百 MB）
+#   ③ 构建产物 —— 发行包、运行时暂存、缓存
+#
+# 规则写宽一点、宁可多挡：漏挡一个密钥比多挡一个文件严重得多。
+# ==============================================================================
+
+# ---- Python 缓存 / 编译产物
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+env/
+
+# ---- 运行时数据：账号、口令、用户数据
+# **本机的 config.json 不进版本库**（里面可能有明文口令）。
+# 模板见 config.example.json；没有 config.json 时服务照常起，
+# 用的是代码里的默认值（收紧的：console_access=admin、无共享账号）。
+config.json
+# 账号库（SQLite，含账号与口令散列）
+data/gisds.db
+data/gisds.db-shm
+data/gisds.db-wal
+# 口令备忘（明文！）
+data/admin_password.txt
+# AI 助手的服务端默认配置（可能含 API Key 明文）
+data/ai_config.json
+# 空间书签
+data/bookmarks.json
+# 作业产物
+data/jobs/
+# **某个用户自己的私有数据**（可能几百 MB，绝不能进仓库）
+data/users/
+# 共享空间：只保留随仓库发布的示例数据与内置底图，
+# 其余（用户往共享空间传的东西）一律挡住
+data/shared/*
+!data/shared/example/
+!data/shared/basemap/
+
+# ---- 自检留下的垃圾
+tests/_workspace/
+tests/sample_data/jobs/
+tests/sample_data/users/
+tests/out_render.png
+# 下划线开头的是**临时脚本**（截图、探针），不进仓库
+tests/_*.py
+# 插件的运行时状态（启用/停用记录）
+plugins/.state.json
+
+# ---- 构建产物（发行包与运行时暂存，体积以 GB 计）
+release/
+# 打包时的临时文件（原子写留下的半成品）
+*.tmp
+# `deps\` 是 pip 装出来的第三方依赖（60 MB / 3000+ 文件），是**构建产物**不是源码。
+# 仓库里不收 —— 首次使用跑一次 `setup.ps1` 装上。
+# 但**发行包里会带上**（免安装，收件人解压即用）。
+deps/
+
+# ---- 日志
+logs/
+*.log
+
+# ---- 编辑器 / 操作系统
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini

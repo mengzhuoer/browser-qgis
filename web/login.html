@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>登录 · Browser QGIS</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/static/favicon.png" />
+<link rel="icon" type="image/png" sizes="1024x1024" href="/static/icon.png" />
+<link rel="apple-touch-icon" href="/static/icon.png" />
+<style>
+  :root{
+    --paper:#EEF0EB; --panel:#FBFCFA; --panel-2:#F4F6F1; --rule:#CFD5CC;
+    --ink:#1E2420; --ink-2:#4C554C; --ink-3:#7B857B;
+    --moss:#2C6B4F; --moss-soft:#E2EEE7; --rust:#A33B24;
+    --mono:"Cascadia Mono","Consolas","Courier New",monospace;
+    --ui:"Segoe UI","Microsoft YaHei",-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;min-height:100vh;font:13.5px/1.55 var(--ui);
+    background:var(--paper);color:var(--ink);
+    display:flex;align-items:center;justify-content:center;padding:24px;
+    background-image:
+      linear-gradient(rgba(120,132,118,.10) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(120,132,118,.10) 1px,transparent 1px);
+    background-size:28px 28px;
+  }
+  .card{
+    width:380px;max-width:100%;background:var(--panel);
+    border:1px solid var(--rule);border-radius:4px;overflow:hidden;
+    box-shadow:0 10px 30px rgba(30,36,32,.08);
+  }
+  .head{padding:18px 20px 14px;border-bottom:1px solid var(--rule);background:var(--panel-2)}
+  .brand{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:650;margin-bottom:8px}
+  .brand img{width:22px;height:22px;border-radius:4px;display:block}
+  .head p{margin:0;font-size:12px;color:var(--ink-3)}
+  .body{padding:18px 20px}
+  .fld{margin-bottom:12px}
+  .fld label{display:block;font-size:11.5px;color:var(--ink-2);margin-bottom:3px}
+  .fld input{
+    width:100%;background:var(--panel);border:1px solid var(--rule);color:var(--ink);
+    border-radius:3px;padding:8px 9px;font-size:13.5px;outline:none;
+  }
+  .fld input:focus{border-color:var(--moss)}
+  button{
+    width:100%;padding:9px;border-radius:3px;cursor:pointer;font-size:13.5px;
+    background:var(--moss);border:1px solid var(--moss);color:#fff;font-weight:600;
+  }
+  button:hover{background:#245740}
+  button.ghost{background:var(--panel);border-color:var(--rule);color:var(--ink-2);font-weight:400;margin-top:8px}
+  button.ghost:hover{background:var(--panel-2);color:var(--ink)}
+  .err{
+    display:none;background:#F6E7E1;border:1px solid #E0B9AC;border-radius:3px;
+    padding:7px 10px;font-size:12px;color:var(--rust);margin-bottom:12px;
+  }
+  .err.on{display:block}
+  .foot{padding:11px 20px;border-top:1px solid var(--rule);font-size:11.5px;color:var(--ink-3);background:var(--panel-2)}
+  .foot a{color:var(--moss)}
+  .reg{display:none}
+  .reg.on{display:block}
+  .sep{display:flex;align-items:center;gap:10px;margin:14px 0 12px;color:var(--ink-3);font-size:11.5px}
+  .sep::before,.sep::after{content:"";flex:1;height:1px;background:var(--rule)}
+  /* 共享超级账号：服务端显式开启时才显示（没配 super_admin_password 就不露） */
+  .shared{display:none;margin-top:14px;padding:9px 11px;border:1px solid var(--rule);
+    border-left:3px solid var(--rust);border-radius:3px;background:#F6E7E1}
+  .shared.on{display:block}
+  .shared .sh-hd{font-size:11.5px;font-weight:650;color:var(--rust);margin-bottom:5px}
+  .shared .sh-row{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink-2);margin:2px 0}
+  .shared .sh-row span{color:var(--ink-3);width:30px;flex:0 0 auto}
+  .shared .sh-row b{font-family:var(--mono);font-weight:600;color:var(--ink);word-break:break-all}
+  .shared .sh-row button{
+    width:auto;margin-left:auto;padding:2px 8px;font-size:11px;font-weight:400;
+    background:var(--panel);border:1px solid var(--rule);color:var(--ink-2);
+  }
+  .shared .sh-row button:hover{background:var(--panel-2);color:var(--ink)}
+  .shared .sh-note{font-size:11px;line-height:1.6;color:var(--ink-2);margin-top:6px}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="head">
+    <div class="brand"><img src="/static/icon.png" alt="Browser QGIS" />Browser QGIS</div>
+    <p id="tip">登录后即可加载、叠加与分析自己的空间数据。</p>
+  </div>
+  <div class="body">
+    <div class="err" id="err"></div>
+    <form id="loginForm" autocomplete="off">
+      <div class="fld">
+        <label for="username">用户名</label>
+        <input id="username" name="username" autocomplete="username" required />
+      </div>
+      <div class="fld">
+        <label for="password">密码</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required />
+      </div>
+      <button type="submit">登录</button>
+    </form>
+    <div class="shared" id="sharedBox">
+      <div class="sh-hd">共享超级账号</div>
+      <div class="sh-row"><span>账号</span><b id="shUser">—</b></div>
+      <div class="sh-row"><span>口令</span><b id="shPass">—</b>
+        <button type="button" id="shFill">填入表单</button></div>
+      <div class="sh-note" id="shNote"></div>
+    </div>
+    <div class="reg" id="regBox">
+      <div class="sep">还没有账号</div>
+      <div class="fld">
+        <label for="regUser">注册用户名</label>
+        <input id="regUser" autocomplete="username" />
+      </div>
+      <div class="fld">
+        <label for="regPass">设置密码（至少 6 位）</label>
+        <input id="regPass" type="password" autocomplete="new-password" />
+      </div>
+      <button type="button" class="ghost" id="regBtn">注册并登录</button>
+    </div>
+  </div>
+  <div class="foot">
+    数据按空间隔离：<b>共享空间</b>人人可读可写，<b>个人空间</b>只有你自己能看见。
+    <span id="footExtra"></span>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const TOKEN_KEY = "gisds.token";
+const USER_KEY = "gisds.user";
+
+function showError(msg){
+  const e = $("err");
+  e.textContent = msg;
+  e.classList.add("on");
+}
+function clearError(){ $("err").classList.remove("on"); }
+
+function saveSession(token, user){
+  localStorage.setItem(TOKEN_KEY, token);
+  localStorage.setItem(USER_KEY, JSON.stringify(user||{}));
+}
+function clearSession(){
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
+}
+function token(){ return localStorage.getItem(TOKEN_KEY) || ""; }
+
+// 已有会话就直接进控制台
+if(token()){
+  fetch("/api/auth/me", {headers:{Authorization:"Bearer "+token()}})
+    .then(r=> r.ok ? r.json() : Promise.reject())
+    .then(()=> location.href = "/")
+    .catch(()=> clearSession());
+}
+
+async function api(path, opts){
+  const res = await fetch(path, {...(opts||{}), headers:{
+    "Content-Type":"application/json", ...((opts&&opts.headers)||{}),
+  }});
+  const data = await res.json().catch(()=>({}));
+  if(!res.ok) throw new Error(data.detail || data.message || res.status);
+  return data;
+}
+
+$("loginForm").onsubmit = async e=>{
+  e.preventDefault();
+  clearError();
+  try{
+    const r = await api("/api/auth/login", {
+      method:"POST",
+      body: JSON.stringify({username:$("username").value, password:$("password").value}),
+    });
+    saveSession(r.token, r.user);
+    location.href = "/";
+  }catch(err){ showError(err.message); }
+};
+
+$("regBtn").onclick = async ()=>{
+  clearError();
+  try{
+    const r = await api("/api/auth/register", {
+      method:"POST",
+      body: JSON.stringify({username:$("regUser").value, password:$("regPass").value}),
+    });
+    saveSession(r.token, r.user);
+    location.href = "/";
+  }catch(err){ showError(err.message); }
+};
+
+// 服务端开关：要不要显示注册
+fetch("/api/auth/config").then(r=>r.json()).then(cfg=>{
+  if(cfg.allow_registration){
+    $("regBox").classList.add("on");
+    $("tip").textContent = "登录后即可加载、叠加与分析自己的空间数据。";
+  }else{
+    $("footExtra").innerHTML = '没有账号？<a href="#" id="askAdmin">请管理员在启动器里开号</a>。';
+    $("askAdmin").onclick = (e)=>{ e.preventDefault(); showError("本服务未开放自助注册，请联系管理员创建账号。"); };
+  }
+  if(cfg.require_login === false){
+    $("tip").textContent = "当前是免登录模式，所有人共用共享空间。";
+    $("loginForm").style.display = "none";
+  }
+  // 共享超级账号：服务端配了才显示。
+  // 「所有用户都能用」这句话，得让人在登录页就看得见 —— 否则等于没做。
+  // 没配 super_admin_password 的部署，这里一个字节都不露。
+  const sa = cfg.shared_account;
+  if(sa && sa.username && cfg.require_login !== false){
+    $("sharedBox").classList.add("on");
+    $("shUser").textContent = sa.username;
+    $("shPass").textContent = sa.password;
+    $("shNote").textContent = sa.note || "";
+    $("shFill").onclick = ()=>{
+      $("username").value = sa.username;
+      $("password").value = sa.password;
+      clearError();
+      $("username").focus();
+    };
+  }
+}).catch(()=>{});
+</script>
+</body>
+</html>

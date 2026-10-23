@@ -1,0 +1,2409 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Browser QGIS</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/static/favicon.png" />
+<link rel="icon" type="image/png" sizes="1024x1024" href="/static/icon.png" />
+<link rel="apple-touch-icon" href="/static/icon.png" />
+<link rel="stylesheet" href="/static/vendor/leaflet.css" />
+<style>
+  :root{
+    --paper:#EEF0EB;
+    --panel:#FBFCFA;
+    --panel-2:#F4F6F1;
+    --panel-3:#E7EAE3;
+    --rule:#CFD5CC;
+    --rule-2:#B4BDB0;
+    --ink:#1E2420;
+    --ink-2:#4C554C;
+    --ink-3:#7B857B;
+    --moss:#2C6B4F;
+    --moss-2:#1F523C;
+    --moss-soft:#E2EEE7;
+    --rust:#A33B24;
+    --rust-soft:#F6E7E1;
+    --amber:#8A6410;
+    --mono:"Cascadia Mono","Consolas","Courier New",monospace;
+    --ui:"Segoe UI","Microsoft YaHei",-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{
+    font:13px/1.5 var(--ui);
+    background:var(--paper);color:var(--ink);
+    display:flex;flex-direction:column;overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit}
+  .muted{color:var(--ink-3)}
+  .spacer{flex:1}
+  .ic{width:16px;height:16px;flex:0 0 auto;display:block}
+  a{color:var(--moss)}
+  :focus-visible{outline:2px solid var(--moss);outline-offset:1px}
+
+  /* ---------------- 顶栏 ---------------- */
+  .menubar{
+    display:flex;align-items:stretch;height:30px;flex:0 0 auto;
+    background:var(--panel);border-bottom:1px solid var(--rule);
+  }
+  .menubar .brand{
+    display:flex;align-items:center;gap:7px;padding:0 12px 0 11px;
+    font-size:12.5px;font-weight:600;letter-spacing:.2px;
+    border-right:1px solid var(--rule);background:var(--panel-2);
+  }
+  .menubar .brand img{width:18px;height:18px;border-radius:3px;display:block}
+  .menubar .brand .sub{color:var(--ink-3);font-weight:400}
+  .menubar .menu{
+    display:flex;align-items:center;padding:0 10px;cursor:pointer;
+    font-size:12.5px;color:var(--ink-2);user-select:none;white-space:nowrap;
+  }
+  .menubar .menu:hover{background:var(--panel-3);color:var(--ink)}
+  .menubar .menu.on{background:var(--panel-3);color:var(--ink);box-shadow:inset 0 -2px 0 var(--moss)}
+  .menubar .right{
+    display:flex;align-items:center;gap:2px;margin-left:auto;padding-right:6px;
+  }
+  .menubar .right a,.menubar .right button{
+    display:flex;align-items:center;gap:5px;padding:0 9px;height:100%;
+    font-size:12px;color:var(--ink-2);text-decoration:none;background:none;border:0;cursor:pointer;
+  }
+  .menubar .right a:hover,.menubar .right button:hover{background:var(--panel-3);color:var(--ink)}
+  .menubar .right .dot{width:6px;height:6px;border-radius:50%;background:var(--ink-3)}
+  .menubar .right .dot.ok{background:var(--moss)}
+  .menubar .right .dot.bad{background:var(--rust)}
+  .menubar .right .tstatus{font-size:12px;color:var(--ink-2);padding:0 9px;display:flex;align-items:center;gap:6px}
+  .menubar .right #userBox{color:var(--ink);font-weight:600;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  .dropdown{
+    position:fixed;z-index:9000;min-width:196px;background:var(--panel);
+    border:1px solid var(--rule-2);border-radius:3px;padding:3px;
+    box-shadow:0 8px 22px rgba(30,36,32,.14);display:none;pointer-events:none;
+  }
+  .dropdown.show{display:block;pointer-events:auto}
+  .dropdown .ditem{
+    display:flex;align-items:center;gap:9px;padding:5px 9px;border-radius:2px;cursor:pointer;
+    font-size:12.5px;color:var(--ink-2);white-space:nowrap;
+  }
+  .dropdown .ditem:hover{background:var(--moss-soft);color:var(--ink)}
+  .dropdown .ditem .k{margin-left:auto;color:var(--ink-3);font-size:11px;font-family:var(--mono)}
+  .dropdown .dsep{height:1px;background:var(--rule);margin:3px 5px}
+  .dropdown .dhead{
+    font-size:10.5px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.7px;
+    padding:6px 9px 3px;
+  }
+
+  /* ---------------- 主区 ---------------- */
+  main{flex:1;display:grid;grid-template-columns:var(--w-left,264px) 1fr var(--w-right,392px);min-height:0}
+  aside{background:var(--panel);overflow:hidden;display:flex;flex-direction:column;position:relative}
+  aside.left{border-right:1px solid var(--rule)}
+  aside.right{border-left:1px solid var(--rule)}
+  /* 拖拽把手：面板可以像 QGIS 桌面版那样拖着边框改大小。
+     v = 竖把手（改宽度），h = 横把手（改高度）。 */
+  .grip{position:absolute;z-index:40;background:transparent;transition:background .12s}
+  .grip:hover,.grip.dragging{background:var(--moss-soft)}
+  .grip:focus-visible{outline:2px solid var(--moss);outline-offset:-2px}
+  .grip.v{top:0;bottom:0;width:9px;cursor:col-resize}
+  /* 把手要**完全落在面板里面**（不能伸出去）：侧栏是 overflow:hidden，
+     伸出去的那部分会被裁掉 —— 裁掉的部分也接不到鼠标事件，
+     拖起来就是「按到了却没反应」。 */
+  aside.left > .grip.v{right:0}
+  aside.right > .grip.v{left:0}
+  .grip.h{left:0;right:0;height:9px;cursor:row-resize}
+  #paneAlgo{position:relative}
+  body.resizing{user-select:none;cursor:col-resize}
+  body.resizing.row{cursor:row-resize}
+
+  .panel{display:flex;flex-direction:column;min-height:0}
+  .panel.grow{flex:1 1 auto;min-height:120px}
+  .panel.collapsed .panel-body{display:none}
+  .panel-head{
+    display:flex;align-items:center;gap:7px;padding:0 9px;height:27px;flex:0 0 auto;
+    background:var(--panel-2);border-bottom:1px solid var(--rule);
+    font-size:11px;font-weight:600;letter-spacing:.4px;color:var(--ink-2);
+  }
+  .panel-head .count{
+    margin-left:auto;background:var(--panel);border:1px solid var(--rule);
+    border-radius:8px;padding:0 6px;font-size:10px;font-weight:400;color:var(--ink-3);
+  }
+  .panel-body{flex:1;overflow:auto;min-height:0}
+  .panel-note{
+    padding:6px 9px;font-size:11.5px;color:var(--ink-3);line-height:1.55;
+    background:var(--panel-2);border-bottom:1px solid var(--rule);
+  }
+
+  /* 图层树 */
+  .layer-row{
+    display:flex;align-items:center;gap:6px;padding:0 8px;height:23px;
+    font-size:12.5px;cursor:pointer;border-left:2px solid transparent;
+  }
+  .layer-row:hover{background:var(--panel-2)}
+  .layer-row.active{background:var(--moss-soft);border-left-color:var(--moss)}
+  .layer-row input[type=checkbox]{
+    width:12px;height:12px;accent-color:var(--moss);cursor:pointer;flex:0 0 auto;margin:0;
+  }
+  .layer-row .lic{width:14px;height:14px;flex:0 0 auto;color:var(--ink-3);display:flex}
+  .layer-row .lic.ras{color:var(--moss)}
+  .layer-row .lic.vec{color:#4A6E9B}
+  .layer-row .lic.srv{color:var(--amber)}
+  .layer-row .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .layer-row.off .nm{color:var(--ink-3)}
+  .layer-row.off .lic{opacity:.45}
+  .layer-toolbar{
+    display:flex;gap:1px;padding:3px 5px;border-bottom:1px solid var(--rule);background:var(--panel-2);
+  }
+  .layer-toolbar button{
+    flex:1;display:flex;align-items:center;justify-content:center;
+    background:transparent;border:1px solid transparent;border-radius:2px;
+    color:var(--ink-2);cursor:pointer;height:21px;
+  }
+  .layer-toolbar button:hover{background:var(--panel-3);color:var(--ink)}
+  .layer-toolbar button:disabled{opacity:.32;cursor:default}
+  .layer-toolbar button:disabled:hover{background:transparent;color:var(--ink-2)}
+
+  /* ---------------- 地图 ---------------- */
+  .mapwrap{position:relative;min-width:0;display:flex}
+  #map{
+    background-color:#E7E9E2;
+    background-image:
+      linear-gradient(rgba(120,132,118,.10) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(120,132,118,.10) 1px,transparent 1px);
+    background-size:28px 28px;background-position:-1px -1px;
+    position:relative;flex:1;
+  }
+  .leaflet-container{background:transparent;font-family:var(--ui)}
+  .leaflet-popup-content-wrapper,.leaflet-popup-tip{
+    background:var(--panel);color:var(--ink);border:1px solid var(--rule-2);border-radius:3px;
+    box-shadow:0 6px 18px rgba(30,36,32,.16)}
+  .leaflet-popup-content{margin:9px 11px;font-size:12px;line-height:1.55}
+  .leaflet-popup-content b{color:var(--moss-2)}
+  .leaflet-control-attribution{
+    background:rgba(251,252,250,.86)!important;color:var(--ink-3)!important;font-size:10px;
+  }
+  .leaflet-control-attribution a{color:var(--ink-2)!important}
+  .leaflet-bar{border:1px solid var(--rule-2)!important;border-radius:3px!important;box-shadow:none!important}
+  .leaflet-bar a{
+    background:var(--panel)!important;color:var(--ink-2)!important;border-color:var(--rule)!important;
+    width:24px!important;height:24px!important;line-height:24px!important;
+  }
+  .leaflet-bar a:hover{background:var(--panel-3)!important;color:var(--ink)!important}
+  .leaflet-control-scale-line{
+    background:rgba(251,252,250,.86)!important;color:var(--ink-2)!important;
+    border:1px solid var(--rule-2)!important;border-top:none!important;border-radius:0!important;
+    font-family:var(--mono);font-size:10px;padding:1px 4px!important;
+  }
+
+  .map-tools{
+    position:absolute;left:8px;top:8px;z-index:600;display:flex;flex-direction:column;
+    background:var(--panel);border:1px solid var(--rule-2);border-radius:3px;padding:2px;
+    box-shadow:0 4px 14px rgba(30,36,32,.12);
+  }
+  .map-tools button{
+    width:27px;height:27px;display:flex;align-items:center;justify-content:center;
+    border:1px solid transparent;border-radius:2px;background:transparent;color:var(--ink-2);cursor:pointer;
+  }
+  .map-tools button:hover{background:var(--panel-3);color:var(--ink)}
+  .map-tools button.on{background:var(--moss-soft);color:var(--moss-2);border-color:#B9D3C4}
+  .map-tools .tsep{height:1px;background:var(--rule);margin:3px 4px}
+
+  .map-msg{
+    position:absolute;left:46px;top:8px;z-index:600;min-width:190px;
+    background:var(--panel);border:1px solid var(--rule-2);border-radius:3px;padding:7px 10px;
+    font-size:12px;box-shadow:0 4px 14px rgba(30,36,32,.12);display:none;
+  }
+  .map-msg.show{display:block}
+  .map-msg b{color:var(--moss-2)}
+  .boxzoom{
+    position:absolute;z-index:500;border:1px solid var(--moss);
+    background:rgba(44,107,79,.12);pointer-events:none;
+  }
+
+  /* ---------------- 状态栏 ---------------- */
+  .statusbar{
+    display:flex;align-items:center;gap:0;padding:0 10px;height:25px;flex:0 0 auto;
+    background:var(--panel-2);border-top:1px solid var(--rule);
+    font-size:11.5px;color:var(--ink-2);
+  }
+  .statusbar .cell{
+    display:flex;align-items:center;gap:6px;padding:0 11px;height:100%;
+    border-right:1px solid var(--rule);white-space:nowrap;
+  }
+  .statusbar .cell:first-child{padding-left:0}
+  .statusbar .cell b{color:var(--ink);font-weight:500;font-family:var(--mono);font-size:11px}
+  .statusbar .cell .lbl{color:var(--ink-3)}
+  .statusbar .tip{
+    color:var(--ink-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    padding-left:11px;flex:1;min-width:0;
+  }
+  .sbar{
+    display:inline-block;height:6px;border:1px solid var(--ink-2);border-top:0;
+    position:relative;width:80px;
+  }
+  .sbar::after{
+    content:"";position:absolute;left:0;right:0;bottom:0;height:5px;
+    background:repeating-linear-gradient(to right,var(--ink-2) 0 1px,transparent 1px 12.5%);
+  }
+
+  /* 空地图引导：放在地图**下沿**一行淡字。
+     原来是在正中间摆一张卡片（带边框和阴影）—— 空地图时它就是屏幕的主角，
+     反而把「往哪儿加图层」这件事说得很吵。挪到下沿、去掉卡片，一行带过就够。 */
+  .map-hint{
+    position:absolute;left:0;right:0;bottom:9px;z-index:500;
+    display:flex;align-items:center;justify-content:center;gap:9px;
+    padding:0 12px;pointer-events:none;
+    font-size:11.5px;line-height:1.5;color:var(--ink-3);
+  }
+  .map-hint .t{font-weight:600;color:var(--ink-2)}
+  .map-hint .d{color:var(--ink-3)}
+  .map-hint.hide{display:none}
+
+  /* ---------------- 右侧面板 ---------------- */
+  .tabs{display:flex;flex:0 0 auto;border-bottom:1px solid var(--rule);background:var(--panel)}
+  .tab{
+    flex:1;text-align:center;padding:7px 4px;cursor:pointer;font-size:12.5px;color:var(--ink-3);
+    border-bottom:2px solid transparent;
+  }
+  .tab:hover{color:var(--ink-2);background:var(--panel-2)}
+  .tab.on{color:var(--ink);border-bottom-color:var(--moss);background:var(--panel)}
+  .tabpane{flex:1;overflow-y:auto;display:none}
+  .tabpane.on{display:block}
+  .sec{padding:10px 12px;border-bottom:1px solid var(--rule)}
+  .sec h2{
+    font-size:10.5px;text-transform:uppercase;letter-spacing:.8px;color:var(--ink-3);
+    margin:0 0 7px;font-weight:600;display:flex;align-items:center;gap:6px;
+  }
+  .sec h2 .count{
+    background:var(--panel-2);border:1px solid var(--rule);border-radius:8px;
+    padding:0 6px;font-size:10px;font-weight:400;color:var(--ink-3);
+  }
+
+  .prop-tabs{
+    display:flex;border-bottom:1px solid var(--rule);background:var(--panel-2);
+    position:sticky;top:0;z-index:2;
+  }
+  .prop-tab{
+    flex:1;text-align:center;padding:6px 2px;font-size:11.5px;color:var(--ink-3);
+    cursor:pointer;border-bottom:2px solid transparent;
+  }
+  .prop-tab:hover{color:var(--ink-2)}
+  .prop-tab.on{color:var(--ink);border-bottom-color:var(--moss);background:var(--panel)}
+
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:5px 10px;
+    border-radius:3px;cursor:pointer;background:var(--panel);border:1px solid var(--rule-2);
+    color:var(--ink);font-size:12.5px;
+  }
+  .btn:hover{background:var(--panel-3);border-color:var(--ink-3)}
+  .btn.primary{background:var(--moss);border-color:var(--moss);color:#fff;font-weight:600}
+  .btn.primary:hover{background:var(--moss-2);border-color:var(--moss-2)}
+  .btn.sm{padding:2px 7px;font-size:11.5px}
+  .btn:disabled{opacity:.42;cursor:not-allowed}
+  .btn.block{width:100%}
+  .row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  .hint{font-size:11.5px;color:var(--ink-3);line-height:1.65}
+  .kv{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:12px}
+  .kv dt{color:var(--ink-3);white-space:nowrap}
+  .kv dd{margin:0;font-family:var(--mono);color:var(--ink);word-break:break-all;font-size:11.5px}
+  pre{
+    margin:0;background:var(--panel-2);border:1px solid var(--rule);border-radius:3px;padding:8px;
+    font-family:var(--mono);font-size:11px;color:var(--ink-2);overflow:auto;max-height:300px;
+    white-space:pre-wrap;word-break:break-word;
+  }
+  .legend{display:flex;flex-direction:column;gap:2px;margin-top:6px}
+  .legend div{display:flex;align-items:center;gap:7px;font-size:11.5px}
+  .sw{width:11px;height:11px;border-radius:2px;flex:0 0 auto;border:1px solid rgba(0,0,0,.18)}
+  .empty{font-size:12px;color:var(--ink-3);padding:5px 2px}
+  .fld{margin-bottom:9px}
+  .fld label{display:block;font-size:11.5px;color:var(--ink-2);margin-bottom:3px}
+  .fld label .req{color:var(--rust)}
+  .fld input[type=text],.fld input[type=number],.fld select,.fld textarea,.fld input[type=file]{
+    width:100%;background:var(--panel);border:1px solid var(--rule-2);color:var(--ink);
+    border-radius:2px;padding:5px 7px;font-size:12.5px;outline:none;
+  }
+  .fld input:focus,.fld select:focus,.fld textarea:focus{border-color:var(--moss)}
+  .fld .desc{font-size:10.5px;color:var(--ink-3);margin-top:2px}
+  .fld.inline{display:flex;align-items:center;gap:7px}
+  .fld.inline input[type=checkbox]{width:auto}
+  .fld.inline label{margin:0}
+  .fld.extent{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+  .fld input[type=range]{width:100%;accent-color:var(--moss)}
+  .algoitem{padding:5px 8px;border-radius:2px;cursor:pointer;border:1px solid transparent}
+  .algoitem:hover{background:var(--panel-2)}
+  .algoitem.on{background:var(--moss-soft);border-color:#B9D3C4}
+  .algoitem .n{font-size:12.5px}
+  .algoitem .g{font-size:10.5px;color:var(--ink-3)}
+  .joblog{
+    background:var(--panel-2);border:1px solid var(--rule);border-radius:3px;padding:8px;
+    font-family:var(--mono);font-size:10.5px;color:var(--ink-2);max-height:170px;overflow:auto;white-space:pre-wrap;
+  }
+  .bar{height:5px;border-radius:2px;background:var(--panel-3);overflow:hidden}
+  .bar i{display:block;height:100%;background:var(--moss);transition:.25s}
+  .statline{display:flex;align-items:center;gap:8px;font-size:11.5px}
+  .statline .nm{min-width:74px}
+  .statline .bar{flex:1}
+  .statline .pc{min-width:46px;text-align:right;color:var(--ink-3)}
+
+  /* 识别结果 */
+  .ident-layer{border:1px solid var(--rule);border-radius:3px;margin-bottom:7px;overflow:hidden}
+  .ident-layer>.h{
+    background:var(--panel-2);padding:5px 9px;font-size:12px;display:flex;align-items:center;gap:7px;
+  }
+  .ident-layer>.h .lic{width:14px;height:14px;color:var(--ink-3);display:flex}
+  .ident-layer>.b{padding:7px 9px}
+  .ident-feat{border-top:1px dashed var(--rule);padding-top:6px;margin-top:6px}
+  .ident-feat:first-child{border-top:none;padding-top:0;margin-top:0}
+  .ident-feat .t{font-size:10.5px;color:var(--ink-3);margin-bottom:3px}
+
+  /* 对话框 */
+  .modal{
+    position:fixed;inset:0;background:rgba(30,36,32,.34);z-index:9500;display:none;
+    align-items:center;justify-content:center;pointer-events:none;
+  }
+  .modal.show{display:flex;pointer-events:auto}
+  .dlg{
+    width:716px;max-width:94vw;height:474px;max-height:88vh;background:var(--panel);
+    border:1px solid var(--rule-2);border-radius:4px;box-shadow:0 20px 48px rgba(30,36,32,.24);
+    display:flex;flex-direction:column;overflow:hidden;position:relative;
+  }
+  /* 弹窗也能拖着改大小（右下角把手） */
+  .grip.diag{right:0;bottom:0;width:17px;height:17px;cursor:nwse-resize;border-radius:0 0 3px 0}
+  .grip.diag::after{
+    content:"";position:absolute;right:3px;bottom:3px;width:7px;height:7px;
+    border-right:2px solid var(--ink-3);border-bottom:2px solid var(--ink-3);
+    opacity:.55;
+  }
+  .grip.diag:hover::after{opacity:1}
+  .dlg-title{
+    padding:9px 13px;border-bottom:1px solid var(--rule);font-size:13px;font-weight:600;
+    display:flex;align-items:center;gap:8px;background:var(--panel-2);
+  }
+  .dlg-title .x{margin-left:auto;cursor:pointer;color:var(--ink-3);font-size:15px;line-height:1;padding:0 3px}
+  .dlg-title .x:hover{color:var(--rust)}
+  .dlg-body{flex:1;display:grid;grid-template-columns:198px 1fr;min-height:0}
+  .dlg-tree{border-right:1px solid var(--rule);overflow:auto;padding:6px 0;background:var(--panel-2)}
+  /* 「添加图层」对话框：左侧树也做成可调的独立一列 ——
+     把手**不能**放进可滚动的树里（会跟着内容滚走，按不到）。 */
+  #dlgAdd .dlg-body{grid-template-columns:var(--dlg-tree,198px) 9px 1fr}
+  #dlgAdd .dlg-tree{border-right:none}
+  #dlgAdd .dlg-body > .grip.v{position:relative;right:auto;left:auto}
+  .dlg-tree .node{
+    padding:4px 12px;font-size:12.5px;cursor:pointer;color:var(--ink-2);
+    display:flex;gap:7px;align-items:center;
+  }
+  .dlg-tree .node:hover{background:var(--panel-3);color:var(--ink)}
+  .dlg-tree .node.on{background:var(--moss-soft);color:var(--moss-2)}
+  .dlg-tree .node.parent{color:var(--ink);font-weight:600}
+  .dlg-tree .node.child{padding-left:26px}
+  .dlg-tree .node .ic{width:14px;height:14px;color:var(--ink-3)}
+  .dlg-tree .node.on .ic{color:var(--moss)}
+  .dlg-form{overflow:auto;padding:13px 15px}
+  .dlg-foot{
+    padding:9px 13px;border-top:1px solid var(--rule);display:flex;align-items:center;gap:7px;
+    background:var(--panel-2);
+  }
+  .dlg-foot .left{margin-right:auto;font-size:11.5px;color:var(--ink-3)}
+  .note{
+    background:var(--amber-soft,#F6F0E2);border:1px solid #E0D2AE;border-radius:3px;
+    padding:8px 10px;font-size:11.5px;color:#6E5210;line-height:1.65;
+  }
+  .note.info{background:var(--moss-soft);border-color:#B9D3C4;color:var(--moss-2)}
+
+  /* 右键菜单 */
+  .ctx{
+    position:fixed;z-index:9600;min-width:176px;background:var(--panel);
+    border:1px solid var(--rule-2);border-radius:3px;padding:3px;
+    box-shadow:0 8px 22px rgba(30,36,32,.16);display:none;pointer-events:none;
+  }
+  .ctx.show{display:block;pointer-events:auto}
+  .ctx .citem{
+    padding:5px 9px;border-radius:2px;cursor:pointer;font-size:12.5px;color:var(--ink-2);
+    display:flex;gap:8px;align-items:center;
+  }
+  .ctx .citem:hover{background:var(--moss-soft);color:var(--ink)}
+  .ctx .csep{height:1px;background:var(--rule);margin:3px 5px}
+
+  #toast{
+    position:fixed;left:50%;bottom:40px;transform:translateX(-50%);z-index:9999;
+    background:var(--ink);color:#F4F6F1;border-radius:3px;padding:8px 14px;
+    font-size:12.5px;box-shadow:0 6px 20px rgba(30,36,32,.26);opacity:0;transition:.16s;pointer-events:none;
+  }
+  #toast.on{opacity:1}
+  ::-webkit-scrollbar{width:9px;height:9px}
+  ::-webkit-scrollbar-thumb{background:#C6CCC1;border-radius:5px;border:2px solid var(--panel)}
+  ::-webkit-scrollbar-track{background:transparent}
+  @media (max-width:1360px){ main{--w-left:238px;--w-right:348px} }
+  @media (prefers-reduced-motion:reduce){ *{transition:none!important;animation:none!important} }
+</style>
+<!-- 制图桌 · 精修层（数字升格 / 输入凹槽 / 地图图框）。放在内联样式之后，
+     同样的选择器以这里的为准；panels.js 运行时注入的那几条用 body 前缀压过去。 -->
+<link rel="stylesheet" href="/static/atelier.css" />
+</head>
+<body>
+<!-- ==================== 顶栏 ==================== -->
+<div class="menubar" id="menubar">
+  <div class="brand"><img src="/static/icon.png" alt="Browser QGIS" />Browser QGIS</div>
+  <div class="menu" data-menu="file">文件</div>
+  <div class="menu" data-menu="edit">编辑</div>
+  <div class="menu" data-menu="view">视图</div>
+  <div class="menu" data-menu="layer">图层</div>
+  <div class="menu" data-menu="help">帮助</div>
+  <div class="right">
+    <span class="tstatus" id="userBox" title="当前登录">—</span>
+    <span class="tstatus"><span class="dot" id="statusDot"></span><span id="statusText">连接中…</span></span>
+    <button id="btnBase" title="切换在线底图（需要外网）">底图 关</button>
+    <button id="btnLogout" title="退出登录">退出</button>
+    <a href="/docs" target="_blank">接口文档</a>
+    <a href="/demo" target="_blank">接入示例</a>
+  </div>
+</div>
+<div class="dropdown" id="dropdown"></div>
+
+<main>
+  <!-- ==================== 左栏：图层 ==================== -->
+  <aside class="left">
+    <div class="grip v" id="gripLeft" role="separator" aria-orientation="vertical"
+         tabindex="0" title="拖动改宽度 · 双击恢复默认 · 方向键微调"></div>
+    <div class="panel grow">
+      <div class="panel-head">图层 <span class="count" id="layerCount">0</span></div>
+      <div class="layer-toolbar">
+        <button id="btnAddLayer" title="添加图层"><span data-ic="plus"></span></button>
+        <button id="btnLayerUp" title="上移一层"><span data-ic="up"></span></button>
+        <button id="btnLayerDown" title="下移一层"><span data-ic="down"></span></button>
+        <button id="btnLayerDel" title="移除图层"><span data-ic="close"></span></button>
+      </div>
+      <div class="panel-body"><div id="treeList" class="hint" style="padding:9px">还没有图层，用 ＋ 添加。</div></div>
+    </div>
+  </aside>
+
+  <!-- ==================== 中栏：地图 ==================== -->
+  <div class="mapwrap">
+    <div id="map"></div>
+    <div class="map-tools" id="mapTools">
+      <!-- 地图上这组 = QGIS 的 **Map Tools**（独立的浮动工具条）：只有识别和测量。
+           平移 / 放大 / 缩小 / 缩放到图层 / 刷新 在**顶部第一排**（导航工具栏）里，
+           两边都放一份会出现两个「平移」按钮 —— 既重复又不知道该点哪个。 -->
+      <button data-tool="identify" title="识别要素（I）"><span data-ic="identify"></span></button>
+      <button data-tool="measure" title="测量距离（R）"><span data-ic="measure"></span></button>
+      <button data-tool="area" title="测量面积（T）"><span data-ic="area"></span></button>
+    </div>
+    <div class="map-msg" id="mapMsg"></div>
+    <div class="map-hint" id="mapHint">
+      <div class="t">还没有图层</div>
+      <div class="d">点左侧 ＋ 添加图层，或把 GeoTIFF / GeoJSON 拖到地图上</div>
+    </div>
+  </div>
+
+  <!-- ==================== 右栏：识别 / 属性 / 工具箱 ==================== -->
+  <aside class="right">
+    <div class="grip v" id="gripRight" role="separator" aria-orientation="vertical"
+         tabindex="0" title="拖动改宽度 · 双击恢复默认 · 方向键微调"></div>
+    <div class="tabs">
+      <div class="tab on" data-pane="paneIdent">识别结果</div>
+      <div class="tab" data-pane="paneProps">图层属性</div>
+      <div class="tab" data-pane="paneAlgo">工具箱</div>
+    </div>
+
+    <div class="tabpane on" id="paneIdent">
+      <div class="panel-note">在地图上单击任意位置，这里列出该点命中的所有图层要素。</div>
+      <div class="sec">
+        <div id="identResult" class="hint">还没有识别任何要素。</div>
+      </div>
+    </div>
+
+    <div class="tabpane" id="paneProps">
+      <div class="prop-tabs" id="propTabs">
+        <div class="prop-tab on" data-proptab="general">常规</div>
+        <div class="prop-tab" data-proptab="symbology">符号系统</div>
+        <div class="prop-tab" data-proptab="transparency">透明度</div>
+        <div class="prop-tab" data-proptab="source">源</div>
+      </div>
+      <div id="propBody" class="hint" style="padding:12px 13px">未选中图层</div>
+    </div>
+
+    <div class="tabpane" id="paneAlgo">
+      <div class="panel-note" id="algoNote">QGIS Processing 工具箱。选算法 → 填参数 → 运行。</div>
+      <div class="panel-note" id="algoWarn" style="display:none;color:#b45309"></div>
+      <div class="sec">
+        <input id="algoSearch" placeholder="搜索算法：缓冲区 / 裁剪 / buffer / clip…"
+               style="width:100%;background:var(--panel);border:1px solid var(--rule-2);color:var(--ink);
+                      border-radius:2px;padding:5px 7px;font-size:12.5px;outline:none" />
+        <div id="algoList" style="margin-top:7px;max-height:210px;overflow:auto"></div>
+      </div>
+      <div class="grip h" id="gripAlgo" role="separator" aria-orientation="horizontal"
+           tabindex="0" title="拖动改高度 · 双击恢复默认 · 方向键微调"></div>
+      <div class="sec">
+        <h2>参数</h2>
+        <div id="algoForm" class="hint">先在上方选一个算法</div>
+      </div>
+      <div class="sec">
+        <h2>运行</h2>
+        <div class="row" style="margin-bottom:8px">
+          <button class="btn primary" id="btnRun" disabled>运行算法</button>
+          <button class="btn" id="btnJobPoll" disabled>刷新状态</button>
+        </div>
+        <div class="bar" style="margin-bottom:7px"><i id="jobBar" style="width:0%"></i></div>
+        <div id="jobState" class="hint">—</div>
+        <div class="joblog" id="jobLog" style="margin-top:7px"></div>
+      </div>
+      <div class="sec">
+        <h2>结果</h2>
+        <div id="jobOutputs" class="hint">—</div>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<!-- ==================== 状态栏 ==================== -->
+<div class="statusbar">
+  <span class="cell"><span class="lbl">坐标</span><b id="stCoord">—</b></span>
+  <span class="cell"><span class="sbar" id="stScaleBar"></span><b id="stScale">—</b></span>
+  <span class="cell"><span class="lbl">坐标系</span><b id="stCrs">EPSG:4326</b></span>
+  <span class="cell"><span class="lbl">图层</span><b id="stLayers">0</b></span>
+  <span class="cell"><span class="lbl">QGIS</span><b id="stQgis">—</b></span>
+  <span class="tip" id="stTip">就绪</span>
+</div>
+
+<!-- ==================== 添加图层对话框 ==================== -->
+<div class="modal" id="dlgAdd">
+  <div class="dlg">
+    <div class="grip diag" id="gripDlgAdd" role="separator" aria-orientation="both"
+         tabindex="0" title="拖动改对话框大小 · 双击恢复默认"></div>
+    <div class="dlg-title">添加图层<span class="x" id="addClose">✕</span></div>
+    <div class="dlg-body">
+      <div class="dlg-tree" id="addTree"></div>
+      <div class="grip v" id="gripAddTree" role="separator" aria-orientation="vertical"
+           tabindex="0" title="拖动改宽度 · 双击恢复默认"></div>
+      <div class="dlg-form" id="addForm"></div>
+    </div>
+    <div class="dlg-foot">
+      <span class="hint left" id="addHint">选择左侧的数据源类型</span>
+      <button class="btn" id="addCancel">取消</button>
+      <button class="btn primary" id="addOk">打开</button>
+    </div>
+  </div>
+</div>
+
+<div class="ctx" id="ctxMenu"></div>
+<div class="ctx" id="aboutBox"></div>
+<div id="toast"></div>
+
+<script src="/static/vendor/leaflet.js"></script>
+<script>
+const API = location.origin;
+const PALETTE = ["#e6194b","#3cb44b","#ffe119","#4363d8","#f58231","#911eb4","#46f0f0",
+                 "#f032e6","#bcf60c","#fabebe","#008080","#e6beff","#9a6324","#fffac8",
+                 "#800000","#aaffc3","#00818c","#e6beff","#9a6324","#fffac8"];
+const VEC_COLORS = ["#2f6f9e","#a8542c","#4a7c3f","#8a6410","#6b5b95","#8c4a52"];
+
+const S = {
+  datasets: [], layers: [],                 // 全部可用图层（扁平清单）
+  active: [],                              // 已加载图层，index 0 = 最上层（QGIS 语义）
+  selected: null,
+  overlays: new Map(),                     // ref -> leaflet 对象
+  classColors: new Map(),                  // ref -> {value:color}
+  fieldsCache: new Map(),
+  detailCache: new Map(),                  // dataset_id -> 数据集详情
+  algos: [], algoGroups: [], currentAlgo: null, algoParams: [],
+  jobId: null, jobTimer: null,
+  styles: new Map(),                      // ref -> {opacity, color, width, fillOpacity, mode}
+  tool: "pan",
+  propTab: "general",
+  addCat: "local-file",
+  addState: {},
+  measure: {points:[], line:null, area:null},
+  boxZoom: null,
+};
+
+const $ = id => document.getElementById(id);
+const TOKEN_KEY = "gisds.token";
+const USER_KEY = "gisds.user";
+function sessionToken(){ return localStorage.getItem(TOKEN_KEY) || ""; }
+function sessionUser(){
+  try{ return JSON.parse(localStorage.getItem(USER_KEY) || "{}"); }catch(e){ return {}; }
+}
+function goLogin(){ if(location.pathname !== "/login") location.href = "/login"; }
+
+/* 16px 描边图标：全部用 currentColor，跟着所在区域的文字颜色走 */
+const ICON = {
+  plus:      '<path d="M8 3.5v9M3.5 8h9"/>',
+  up:        '<path d="M3.5 10 8 5.5l4.5 4.5"/>',
+  down:      '<path d="M3.5 6 8 10.5l4.5-4.5"/>',
+  close:     '<path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/>',
+  pan:       '<path d="M8 1.6v12.8M1.6 8h12.8"/><path d="M8 1.6 6.3 3.4M8 1.6l1.7 1.8M8 14.4 6.3 12.6M8 14.4l1.7-1.8M1.6 8l1.8-1.7M1.6 8l1.8 1.7M14.4 8l-1.8-1.7M14.4 8l-1.8 1.7"/>',
+  zoomIn:    '<circle cx="7" cy="7" r="4.4"/><path d="M10.3 10.3 14 14M5.2 7h3.6M7 5.2v3.6"/>',
+  zoomOut:   '<circle cx="7" cy="7" r="4.4"/><path d="M10.3 10.3 14 14M5.2 7h3.6"/>',
+  identify:  '<circle cx="8" cy="8" r="3.4"/><path d="M8 1.4v2.4M8 12.2v2.4M1.4 8h2.4M12.2 8h2.4"/>',
+  measure:   '<path d="M1.8 10.4 10.4 1.8l3.8 3.8-8.6 8.6z"/><path d="M5.1 7.1l1.5 1.5M7.7 4.5l1.5 1.5M3.5 8.7l1.5 1.5"/>',
+  area:      '<path d="M2 11.2 5.4 3.2 13.2 5.4 10.6 13.2z"/><circle cx="5.4" cy="3.2" r="1.1"/><circle cx="13.2" cy="5.4" r="1.1"/><circle cx="10.6" cy="13.2" r="1.1"/><circle cx="2" cy="11.2" r="1.1"/>',
+  zoomLayer: '<path d="M2.2 6V2.2H6M10 2.2h3.8V6M13.8 10v3.8H10M6 13.8H2.2V10"/><path d="M8 5.4v5.2M5.4 8h5.2"/>',
+  refresh:   '<path d="M13.2 7.2a5.2 5.2 0 1 1-1.6-3.4"/><path d="M13.4 1.8v3.4H10"/>',
+  raster:    '<rect x="2" y="3" width="12" height="10"/><path d="M2 6.4h12M2 9.8h12M6 3v10M10 3v10"/>',
+  vector:    '<path d="M3 12.4 8 3.6l5 7.6"/><circle cx="3" cy="12.4" r="1.5"/><circle cx="8" cy="3.6" r="1.5"/><circle cx="13" cy="11.2" r="1.5"/>',
+  service:   '<rect x="2" y="2" width="12" height="12"/><path d="M2 6h12M2 10h12M6 2v12M10 2v12"/>',
+  file:      '<path d="M4 1.8h5l3 3v9.4H4z"/><path d="M9 1.8v3h3"/>',
+  db:        '<ellipse cx="8" cy="4" rx="5" ry="2.2"/><path d="M3 4v8c0 1.2 2.2 2.2 5 2.2s5-1 5-2.2V4M3 8c0 1.2 2.2 2.2 5 2.2s5-1 5-2.2"/>',
+  folder:    '<path d="M1.8 4.2h4.4l1.4 1.8h6.6v7.4H1.8z"/>',
+  globe:     '<circle cx="8" cy="8" r="5.6"/><path d="M2.4 8h11.2M8 2.4c1.6 1.8 2.4 3.6 2.4 5.6S9.6 12.6 8 14.4C6.4 12.6 5.6 10.2 5.6 8S6.4 3.4 8 2.4z"/>',
+};
+function svg(name, size){
+  size = size || 16;
+  // 认不出的图标名一律退回文件图标，避免出现空白或把名字当文字渲染
+  const body = ICON[name] || ICON.file;
+  return '<svg class="ic" viewBox="0 0 16 16" width="'+size+'" height="'+size+'" fill="none" '
+       + 'stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round">'
+       + body + '</svg>';
+}
+
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function toast(msg){ const t=$("toast"); t.textContent=msg; t.classList.add("on");
+  clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove("on"),2800); }
+function tip(msg){ $("stTip").textContent = msg; }
+
+/**
+ * 调用 REST 接口。带超时与一次自动重试：局域网/浏览器环境偶发
+ * 「服务端已返回 200、浏览器端 fetch 却不落定」，超时后重试可自愈。
+ */
+async function api(path, opts, attempt = 0){
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 20000);
+  try{
+    const res = await fetch(API + path, {
+      ...(opts||{}),
+      signal: ctl.signal,
+      cache:"no-store",
+      headers: {
+        Authorization: "Bearer " + sessionToken(),
+        ...((opts && opts.headers) || {}),
+      },
+    });
+    if(res.status === 401){ goLogin(); throw new Error("需要登录"); }
+    if(!res.ok){
+      let msg = res.status + " " + res.statusText;
+      try{ const j = await res.json(); msg = j.message || j.detail || msg; }catch(e){}
+      throw new Error(msg);
+    }
+    const ct = res.headers.get("content-type") || "";
+    return ct.includes("json") ? await res.json() : res;
+  }catch(err){
+    if(err && err.message === "需要登录") throw err;
+    if(attempt === 0){ clearTimeout(timer); return api(path, opts, attempt + 1); }
+    const why = err.name === "AbortError" ? "请求超时" : (err.message || String(err));
+    throw new Error(why + "（" + path + "）");
+  }finally{
+    clearTimeout(timer);
+  }
+}
+
+// ---------------------------------------------------------------- 地图
+const map = L.map("map",{zoomControl:false,preferCanvas:false,attributionControl:true}).setView([35,105],4);
+map.createPane("rasters");
+map.getPane("rasters").style.zIndex = 350;
+map.createPane("vectors");
+map.getPane("vectors").style.zIndex = 450;
+L.control.zoom({position:"bottomright"}).addTo(map);
+
+// 1×1 全透明 PNG：图层范围外的瓦片直接用它，省得让服务端渲一遍
+const TRANSPARENT_PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+
+/** 带鉴权头的瓦片层。
+ *
+ *  栅格图层的瓦片接口要登录态（/api/tiles/... 和别的接口一样鉴权），
+ *  而 <img> 标签**发不了请求头** —— 所以这里用 fetch 拿 blob 再塞给 img。
+ *  （用 ?token= 也能过，但令牌会进 URL、进浏览器历史、也进服务端访问日志。）
+ */
+const AuthTileLayer = L.TileLayer.extend({
+  createTile: function(coords, done){
+    const tile = document.createElement("img");
+    tile.alt = "";
+    // 标记这是哪个图层的瓦片：blob 地址认不出图层，自检要按图层数瓦片。
+    if(this.options.layerRef) tile.dataset.layer = this.options.layerRef;
+    let settled = false;
+    const finish = (err) => { if(settled) return; settled = true; done(err, tile); };
+    tile.onerror = () => finish(new Error("瓦片加载失败"));
+
+    // **请求要能中止**。
+    //
+    // 瓦片是用 fetch 取 blob 的（<img> 发不了 Authorization 头），
+    // 而**把 <img> 从 DOM 里摘掉并不会让 fetch 停下来** ——
+    // 服务端照样会把这一块渲完（一次 QGIS 渲染，十几毫秒），
+    // 结果回来时已经没人要了。快速连续缩放 / 移除图层时，
+    // 这些浪费会排在真正要的那一屏**前面**（服务端只有一条 QGIS 线程）。
+    //
+    // 实测（z=18，一屏 48 块）：全冷 607~692ms，全缓存 195~207ms。
+    // 所以中止掉「已经不要的」那些请求，省下的就是实打实的 QGIS 时间。
+    const ac = new AbortController();
+    tile.__gisdsAbort = ac;
+
+    // 图层范围外的瓦片：直接给透明图。缩到小级别时整屏都是这种瓦片，
+    // 让服务端逐块渲一遍纯属浪费（每块都要跑一次 QGIS 渲染）。
+    const b = this.options.bounds;
+    if(b){
+      const nw = map.unproject(L.point(coords.x*256, coords.y*256), coords.z);
+      const se = map.unproject(L.point((coords.x+1)*256, (coords.y+1)*256), coords.z);
+      if(se[0] < b[0] || nw[0] > b[2] || se[1] < b[1] || nw[1] > b[3]){
+        tile.src = TRANSPARENT_PNG;
+        return tile;
+      }
+    }
+    fetch(this.getTileUrl(coords), {headers:{Authorization:"Bearer " + sessionToken()}, signal: ac.signal})
+      .then(r => { if(!r.ok) throw new Error("HTTP " + r.status); return r.blob(); })
+      .then(blob => {
+        if(tile.__gisdsAbort && tile.__gisdsAbort.signal.aborted) return;  // 已经被中止，丢弃
+        const url = URL.createObjectURL(blob);
+        tile.onload = () => { URL.revokeObjectURL(url); finish(null); };
+        tile.src = url;
+      })
+      .catch(err => {
+        // 主动中止不算失败：瓦片已经不需要了，报错反而会让 Leaflet 标成「加载出错」。
+        if(err && err.name === "AbortError") return;
+        finish(err);
+      });
+    return tile;
+  },
+  onAdd: function(map){
+    // Leaflet 把瓦片从视野里摘掉时会触发 tileunload —— 那里把请求中止掉。
+    // （图层被移除再加回来时 onAdd 会跑第二次，先 off 掉，免得挂两遍。）
+    this.off("tileunload", this._abortTile);
+    this.on("tileunload", this._abortTile);
+    return L.TileLayer.prototype.onAdd.call(this, map);
+  },
+  _abortTile: function(e){
+    const el = e && e.tile && e.tile.el;
+    if(el && el.__gisdsAbort) el.__gisdsAbort.abort();
+  }
+});
+
+// ---------------------------------------------------------------- 底图
+// 内置离线底图：由本服务把 Natural Earth 世界矢量数据渲染成 XYZ 瓦片，
+// 完全不依赖外网。在线底图（OpenStreetMap）作为可选项保留。
+const BASEMAP_MAX_NATIVE_ZOOM = 9;
+let baseLayer = null;          // 当前启用的底图 tileLayer
+let baseKind = "none";         // none | builtin | online
+
+function makeBuiltinBasemap(){
+  return L.tileLayer("/api/tiles/basemap/{z}/{x}/{y}.png", {
+    minZoom: 0, maxZoom: 19, maxNativeZoom: BASEMAP_MAX_NATIVE_ZOOM,
+    attribution: "底图：Natural Earth（公共领域）",
+  });
+}
+function makeOnlineBasemap(){
+  return L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    {maxZoom: 19, attribution: "&copy; OpenStreetMap"});
+}
+function setBasemap(kind){
+  if(kind === baseKind) return;
+  if(baseLayer){ map.removeLayer(baseLayer); baseLayer = null; }
+  if(kind === "builtin") baseLayer = makeBuiltinBasemap().addTo(map);
+  else if(kind === "online") baseLayer = makeOnlineBasemap().addTo(map);
+  baseKind = baseLayer ? kind : "none";
+  const b = $("btnBase");
+  if(b){
+    b.textContent = "底图 " + (baseKind === "builtin" ? "内置" : baseKind === "online" ? "在线" : "关");
+    b.style.color = baseLayer ? "var(--accent)" : "var(--fg-dim)";
+    b.title = baseKind === "builtin" ? "内置离线底图（Natural Earth）"
+            : baseKind === "online" ? "在线底图 OpenStreetMap（需要外网）" : "关闭底图";
+  }
+}
+$("btnBase").onclick = ()=> setBasemap(baseKind === "builtin" ? "none" : "builtin");
+
+/** 问服务端底图装没装，没装就留个提示而不是白屏。 */
+async function initBasemap(){
+  try{
+    const st = await api("/api/tiles/basemap/status");
+    if(st.available){ setBasemap("builtin"); }
+    else{
+      const b = $("btnBase");
+      if(b){ b.textContent = "底图 无"; b.title = "未安装内置底图：服务端执行 gisds basemap 安装"; }
+      tip("未安装内置底图，服务端执行 gisds basemap 即可离线使用");
+    }
+  }catch(e){ /* 端点不可用就静默 */ }
+}
+
+// ---------------------------------------------------------------- 当前用户
+function renderUser(){
+  const u = sessionUser();
+  $("userBox").textContent = u.display_name || u.username || "访客";
+  $("userBox").title = u.username ? (u.username + (u.role==="admin" ? "（管理员）" : "")) : "未登录";
+}
+$("btnLogout").onclick = async ()=>{
+  try{ await api("/api/auth/logout", {method:"POST"}); }catch(e){}
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
+  location.href = "/login";
+};
+renderUser();
+
+// ---------------------------------------------------------------- 状态栏
+function updateStatusBar(e){
+  const ll = e ? e.latlng : map.getCenter();
+  $("stCoord").textContent = ll.lng.toFixed(6) + ", " + ll.lat.toFixed(6);
+  const size = map.getSize();
+  const a = map.containerPointToLatLng([size.x/2, size.y/2]);
+  const b = map.containerPointToLatLng([size.x/2 + 100, size.y/2]);
+  const meters = map.distance(a, b);
+  const ratio = meters / 100 * (96/25.4);
+  $("stScale").textContent = "1:" + Math.round(ratio).toLocaleString("en-US");
+  // 实体刻度条：选一个不超过 120px 的整数档位
+  const steps = [1,2,5,10,20,50,100,200,500,1000,2000,5000,10000,20000,50000,
+                 100000,200000,500000,1000000,2000000,5000000,10000000];
+  let target = steps[steps.length-1];
+  for(const n of steps){ if(n >= ratio/100*120){ target = n; break; } }
+  const bar = $("stScaleBar");
+  if(bar) bar.style.width = Math.max(64, Math.min(170, target/ratio*100)) + "px";
+  $("stLayers").textContent = S.active.length;
+}
+map.on("mousemove", updateStatusBar);
+map.on("zoomend", ()=> updateStatusBar(null));
+
+// ---------------------------------------------------------------- 菜单栏
+const MENUS = {
+  file: ()=>[
+    {head:"文件"},
+    {label:"添加图层…", key:"A", run: openAddDialog},
+    {label:"重新扫描数据目录", run: rescanData},
+    {sep:true},
+    {label:"清空地图", run: clearMap},
+    {label:"服务信息", run: showAbout},
+  ],
+  edit: ()=>[
+    {head:"编辑"},
+    {label:"移除选中图层", key:"Del", run: ()=>{ if(S.selected) removeLayer(S.selected); }},
+    {label:"清除识别结果", run: ()=>{ $("identResult").innerHTML = '<span class="muted">还没有识别任何要素。</span>'; }},
+  ],
+  view: ()=>[
+    {head:"视图"},
+    {label:"缩放至图层", run: ()=> zoomToLayer(S.selected)},
+    {label:"缩放至全部", run: zoomAll},
+    {label:"刷新地图", run: refreshMap},
+    {sep:true},
+    {label:"内置底图（离线）", run: ()=> setBasemap("builtin")},
+    {label:"在线底图 OpenStreetMap", run: ()=> setBasemap("online")},
+    {label:"关闭底图", run: ()=> setBasemap("none")},
+    {sep:true},
+    {head:"面板"},
+    {label:"识别结果", run: ()=> switchTab("paneIdent")},
+    {label:"图层属性", run: ()=> switchTab("paneProps")},
+    {label:"工具箱", run: ()=> switchTab("paneAlgo")},
+    {sep:true},
+    // 控制台是可选的：当前用户没权限时 console.js 根本不挂，整项就静默消失
+    {label:"Python 控制台", run: ()=>{ if(window.openConsole) window.openConsole(); }},
+    // AI 助手同理：没权限时 ai.js 不会挂标签页，这项就点了没反应
+    {label:"AI 助手", run: ()=>{ if(window.GISDS_AI) window.GISDS_AI.open(); }},
+  ],
+  layer: ()=>[
+    {head:"图层"},
+    {label:"图层属性…", run: ()=>{ switchTab("paneProps"); }},
+    {label:"缩放至图层", run: ()=> zoomToLayer(S.selected)},
+    {sep:true},
+    {label:"移至最前", run: ()=> moveLayer(S.selected, -1)},
+    {label:"移至最后", run: ()=> moveLayer(S.selected, 1)},
+    {sep:true},
+    {label:"移除图层", run: ()=>{ if(S.selected) removeLayer(S.selected); }},
+  ],
+  help: ()=>[
+    {head:"帮助"},
+    {label:"使用帮助…", run: ()=>{ window.open("/help", "_blank"); }},
+    {sep:true},
+    {label:"关于本服务", run: showAbout},
+  ],
+};
+
+let openMenu = null;
+function closeDropdown(){
+  $("dropdown").classList.remove("show");
+  document.querySelectorAll(".menubar .menu.on").forEach(m=>m.classList.remove("on"));
+  openMenu = null;
+}
+function renderDropdown(name, anchor){
+  const items = MENUS[name]();
+  const dd = $("dropdown");
+  dd.innerHTML = items.map(it=>{
+    if(it.sep) return '<div class="dsep"></div>';
+    if(it.head) return `<div class="dhead">${esc(it.head)}</div>`;
+    return `<div class="ditem" data-i="${items.indexOf(it)}">${esc(it.label)}${it.key?`<span class="k">${esc(it.key)}</span>`:""}</div>`;
+  }).join("");
+  dd.querySelectorAll(".ditem").forEach(el=>{
+    el.onclick = ()=>{ const it = items[Number(el.dataset.i)]; closeDropdown(); it.run(); };
+  });
+  const r = anchor.getBoundingClientRect();
+  dd.classList.add("show");
+  dd.style.left = Math.min(r.left, window.innerWidth - dd.offsetWidth - 10) + "px";
+  dd.style.top = (r.bottom + 4) + "px";
+}
+document.querySelectorAll(".menubar .menu").forEach(m=>{
+  m.onclick = e=>{
+    e.stopPropagation();
+    if(openMenu === m.dataset.menu){ closeDropdown(); return; }
+    document.querySelectorAll(".menubar .menu.on").forEach(x=>x.classList.remove("on"));
+    m.classList.add("on");
+    openMenu = m.dataset.menu;
+    renderDropdown(m.dataset.menu, m);
+  };
+});
+document.addEventListener("click", ()=>{ if(openMenu) closeDropdown(); });
+
+// ---------------------------------------------------------------- 图层树
+function layerIcon(item){
+  if(item.type === "service") return {cls:"srv", icon:"service"};
+  return item.type === "raster" ? {cls:"ras", icon:"raster"} : {cls:"vec", icon:"vector"};
+}
+
+function renderTree(){
+  const box = $("treeList");
+  $("layerCount").textContent = S.active.length;
+  $("stLayers").textContent = S.active.length;
+  const hint = $("mapHint");
+  if(hint) hint.classList.toggle("hide", S.active.length > 0);
+  if(!S.active.length){ box.className = "hint"; box.style.padding = "9px"; box.textContent = "还没有图层，用 ＋ 添加。"; return; }
+  box.className = ""; box.style.padding = "0"; box.innerHTML = "";
+  S.active.forEach((item, idx)=>{
+    const l = item.layer || {};
+    const ic = layerIcon(item);
+    const el = document.createElement("div");
+    el.className = "layer-row" + (S.selected && S.selected.ref===item.ref ? " active" : "")
+      + (item.visible ? "" : " off");
+    el.innerHTML =
+      `<input type="checkbox" ${item.visible?"checked":""} title="显示/隐藏">`
+      + `<span class="lic ${ic.cls}">${svg(ic.icon,13)}</span>`
+      + `<span class="nm" title="${esc(l.path||l.file||l.title||item.ref)}">${esc(l.title||item.ref)}</span>`;
+    el.querySelector("input").onclick = e=>{ e.stopPropagation(); item.visible = e.target.checked; applyVisibility(item); renderTree(); };
+    el.onclick = ()=> selectLayer(item);
+    el.oncontextmenu = e=>{ e.preventDefault(); showCtxMenu(e, item); };
+    box.appendChild(el);
+  });
+  // 叠放顺序：列表首项在最上层
+  applyZOrder();
+  $("btnLayerUp").disabled = !S.selected;
+  $("btnLayerDown").disabled = !S.selected;
+  $("btnLayerDel").disabled = !S.selected;
+}
+
+function applyZOrder(){
+  S.active.forEach((item, idx)=>{
+    const ov = S.overlays.get(item.ref);
+    if(!ov) return;
+    const z = 1000 - idx;
+    if(typeof ov.setZIndex === "function") ov.setZIndex(z);
+  });
+  // 矢量在 SVG 渲染器里靠顺序，QGIS 语义：首项在最上
+  for(let i = S.active.length - 1; i >= 0; i--){
+    const item = S.active[i];
+    const ov = S.overlays.get(item.ref);
+    if(ov && typeof ov.bringToFront === "function") ov.bringToFront();
+  }
+}
+
+function applyVisibility(item){
+  const ov = S.overlays.get(item.ref);
+  if(!ov) return;
+  if(item.visible){ if(!map.hasLayer(ov)) ov.addTo(map); }
+  else { if(map.hasLayer(ov)) map.removeLayer(ov); }
+  applyZOrder();
+}
+
+/** 图层样式：透明度、矢量颜色/线宽/填充、栅格配色与渲染模式 */
+
+/** 真彩色合成影像（多波段，QGIS 认出来的是多波段彩色渲染器）。
+ *  默认用「真彩色」而不是单波段假彩色 —— 遥感照片被拉成假彩色会整片发紫。 */
+function isTruecolor(item){
+  return !!(item && item.type === "raster" && item.layer && item.layer.truecolor === true);
+}
+function styleOf(item){
+  if(!S.styles) S.styles = new Map();
+  if(!S.styles.has(item.ref)) S.styles.set(item.ref, {opacity:0.92, color:null, width:1.6, fillOpacity:0.2,
+    mode: isTruecolor(item) ? "truecolor" : "viridis"});
+  return S.styles.get(item.ref);
+}
+function vectorColor(item){
+  const st = styleOf(item);
+  if(st.color) return st.color;
+  const idx = S.active.filter(a=>a.type==="vector").indexOf(item);
+  return VEC_COLORS[(idx < 0 ? 0 : idx) % VEC_COLORS.length];
+}
+
+async function addLayer(l, opts){
+  opts = opts || {};
+  if(S.active.some(a=>a.ref===l.ref)){ toast("该图层已在地图上"); return null; }
+  const item = {
+    ref: l.ref, layer: l,
+    type: l._type || (l.kind === "vector" ? "vector" : "raster"),
+    visible: true,
+  };
+  S.active.unshift(item);           // QGIS：新增图层置顶
+  await drawLayer(item);
+  renderTree();
+  selectLayer(item);
+  if(S.active.length === 1 && l.extent_wgs84){
+    const e = l.extent_wgs84;
+    if(e[2] > e[0]) map.fitBounds([[e[1],e[0]],[e[3],e[2]]],{padding:[26,26]});
+  }
+  tip("已添加图层：" + (l.title || l.ref));
+  return item;
+}
+
+async function drawLayer(item){
+  const l = item.layer || {};
+  const st = styleOf(item);
+  const old = S.overlays.get(item.ref);
+  if(old){ map.removeLayer(old); S.overlays.delete(item.ref); }
+  try{
+    if(item.type === "raster"){
+      const e = l.extent_wgs84;
+      const cmap = colorMap(l.ref, l.classes||{});
+      const q = new URLSearchParams();
+      if(S.classColors.has(l.ref)) q.set("colors", JSON.stringify(cmap));
+      // "truecolor" = 用 QGIS 自己的多波段彩色渲染器（后端默认行为），
+      // 不用把 mode 传过去；只有真的选了某条渐变才传。
+      if(st.mode && st.mode !== "viridis" && st.mode !== "truecolor") q.set("mode", st.mode);
+      // **按层级出瓦片**，不是把整层渲成一张大图铺上去 ——
+      // 整层渲成 1400px 的话，1 个图像像素就对应 6 个源像素（Sentinel-2
+      // 源尺寸 8350×6352），放大必然糊。瓦片是每个层级单独渲的，放大才看得清。
+      const url = "/api/tiles/" + encodeURIComponent(l.dataset_id) + "/"
+        + encodeURIComponent(layerIdOf(l)) + "/{z}/{x}/{y}.png"
+        + (q.toString() ? "?" + q.toString() : "");
+      const ov = new AuthTileLayer(url, {
+        opacity: st.opacity, pane: "rasters", maxZoom: 20,
+        layerRef: l.ref,
+        bounds: [[e[1],e[0]],[e[3],e[2]]],
+      }).addTo(map);
+      S.overlays.set(item.ref, ov);
+    }else if(item.type === "service"){
+      const ov = l.tileLayer.addTo(map);
+      S.overlays.set(item.ref, ov);
+    }else{
+      const gj = await api(`/api/vectors/${encodeURIComponent(l.dataset_id)}/${encodeURIComponent(layerIdOf(l))}/features?limit=3000`);
+      const color = vectorColor(item);
+      const ov = L.geoJSON(gj,{
+        pane:"vectors",
+        style:{color, weight: st.width, fillColor: color, fillOpacity: st.fillOpacity},
+        onEachFeature:(f,ly)=>{
+          const rows = Object.entries(f.properties||{}).map(([k,v])=>`<div><b>${esc(k)}</b>: ${esc(v)}</div>`).join("");
+          ly.bindPopup(rows||"（无属性）");
+        }
+      }).addTo(map);
+      S.overlays.set(item.ref, ov);
+    }
+  }catch(err){ toast("加载图层失败：" + err.message); }
+  applyVisibility(item);
+  applyZOrder();
+}
+
+function removeLayer(item){
+  if(!item) return;
+  const ov = S.overlays.get(item.ref);
+  if(ov) map.removeLayer(ov);
+  S.overlays.delete(item.ref);
+  S.active = S.active.filter(a=>a.ref !== item.ref);
+  if(S.selected && S.selected.ref === item.ref){ S.selected = null; renderProps(); }
+  renderTree();
+  tip("已移除图层");
+}
+
+function moveLayer(item, dir){
+  if(!item) return;
+  const idx = S.active.indexOf(item);
+  const to = idx + dir;
+  if(to < 0 || to >= S.active.length) return;
+  S.active.splice(idx, 1);
+  S.active.splice(to, 0, item);
+  renderTree();
+}
+
+function clearMap(){
+  for(const item of [...S.active]) removeLayer(item);
+}
+
+/** 图层在数据集内的 id：图层清单里只有 ref，用「数据集:图层」拆出来。 */
+function layerIdOf(l){
+  if(!l) return "";
+  if(l.id) return l.id;
+  const ref = l.ref || "";
+  const i = ref.indexOf(":");
+  return i >= 0 ? ref.slice(i+1) : ref;
+}
+
+async function selectLayer(item){
+  S.selected = item;
+  renderTree();
+  renderProps();
+  // 补齐数据集详情（类别表、尺寸、分辨率、NoData…），加载完再刷新属性面板
+  const l = item.layer || {};
+  if(l.dataset_id){
+    const detail = await datasetDetail(l.dataset_id);   // 命中缓存直接返回，不会重复请求
+    if(detail && S.selected === item){
+      const lid = layerIdOf(l);
+      const rich = (detail.layers && detail.layers[lid]) || (detail.vectors && detail.vectors[lid]);
+      if(rich) item.layer = {...item.layer, ...rich};
+      renderProps();
+    }
+  }
+}
+
+function zoomToLayer(item){
+  if(!item){ toast("先选中一个图层"); return; }
+  const e = (item.layer||{}).extent_wgs84;
+  if(!e || !(e[2] > e[0])){ toast("该图层没有有效范围"); return; }
+  map.fitBounds([[e[1],e[0]],[e[3],e[2]]], {padding:[26,26]});
+  tip("已缩放至：" + (item.layer.title || item.ref));
+}
+
+function zoomAll(){
+  const items = S.active.map(a=>(a.layer||{}).extent_wgs84).filter(e=>e && e[2] > e[0]);
+  if(!items.length){ map.setView([35,105], 4); return; }
+  const minx = Math.min(...items.map(e=>e[0])), miny = Math.min(...items.map(e=>e[1]));
+  const maxx = Math.max(...items.map(e=>e[2])), maxy = Math.max(...items.map(e=>e[3]));
+  map.fitBounds([[miny,minx],[maxy,maxx]], {padding:[26,26]});
+}
+
+async function refreshMap(){
+  tip("正在刷新…");
+  for(const item of [...S.active]){
+    if(item.type === "service") continue;
+    await drawLayer(item);
+  }
+  renderTree();
+  tip("地图已刷新");
+}
+
+// ---------------------------------------------------------------- 右键菜单
+function showCtxMenu(e, item){
+  const cm = $("ctxMenu");
+  const actions = [
+    {label:"缩放至图层", run: ()=> zoomToLayer(item)},
+    {label:"图层属性…", run: ()=>{ selectLayer(item); switchTab("paneProps"); }},
+    {sep:true},
+    {label:"移至最前", run: ()=> moveLayer(item, -1)},
+    {label:"移至最后", run: ()=> moveLayer(item, 1)},
+    {sep:true},
+    {label:"移除图层", run: ()=> removeLayer(item)},
+  ];
+  cm.innerHTML = actions.map((a,i)=> a.sep ? '<div class="csep"></div>'
+    : `<div class="citem" data-i="${i}">${esc(a.label)}</div>`).join("");
+  cm.querySelectorAll(".citem").forEach(el=>{
+    el.onclick = ()=>{ const a = actions[Number(el.dataset.i)]; cm.classList.remove("show"); a.run(); };
+  });
+  cm.classList.add("show");
+  const w = cm.offsetWidth, h = cm.offsetHeight;
+  cm.style.left = Math.min(e.clientX, window.innerWidth - w - 8) + "px";
+  cm.style.top = Math.min(e.clientY, window.innerHeight - h - 8) + "px";
+}
+document.addEventListener("click", e=>{
+  if(!e.target.closest("#ctxMenu")) $("ctxMenu").classList.remove("show");
+  if(!e.target.closest("#aboutBox")) $("aboutBox").classList.remove("show");
+});
+
+// ---------------------------------------------------------------- 地图工具
+function setTool(tool){
+  S.tool = tool;
+  document.querySelectorAll(".map-tools button").forEach(b=>{
+    b.classList.toggle("on", b.dataset.tool === tool);
+  });
+  if(tool !== "measure" && tool !== "area") clearMeasure();
+  if(tool === "measure" || tool === "area"){
+    tip(tool === "measure" ? "测距：单击添加节点，双击结束" : "测面积：单击添加节点，双击结束");
+  }else{
+    tip("当前工具：" + toolName(tool));
+  }
+}
+function toolName(t){
+  return {pan:"平移地图", zoomIn:"放大", zoomOut:"缩小", identify:"识别要素",
+          measure:"测量距离", area:"测量面积", zoomLayer:"缩放至图层", refresh:"刷新地图"}[t] || t;
+}
+document.querySelectorAll(".map-tools button").forEach(b=>{
+  b.onclick = ()=>{
+    // ⤢ 与 ⟳ 是「动作」而非工具：点了立刻执行（对应 QGIS 工具栏上的同名按钮）
+    if(b.dataset.tool === "zoomLayer"){ zoomToLayer(S.selected); return; }
+    if(b.dataset.tool === "refresh"){ refreshMap(); return; }
+    setTool(b.dataset.tool);
+  };
+});
+
+function clearMeasure(){
+  const m = S.measure;
+  if(m.line) map.removeLayer(m.line);
+  if(m.area) map.removeLayer(m.area);
+  m.points = []; m.line = null; m.area = null;
+  $("mapMsg").classList.remove("show");
+}
+
+function updateMeasure(){
+  const m = S.measure;
+  if(m.line) map.removeLayer(m.line);
+  if(m.area) map.removeLayer(m.area);
+  if(m.points.length < 2){ $("mapMsg").classList.remove("show"); return; }
+  const latlngs = m.points.map(p=>[p.lat,p.lng]);
+  if(S.tool === "area"){
+    m.area = L.polygon(latlngs, {color:"#fbbf24", weight:2, fillColor:"#fbbf24", fillOpacity:.15}).addTo(map);
+  }else{
+    m.line = L.polyline(latlngs, {color:"#38bdf8", weight:2}).addTo(map);
+  }
+  let total = 0;
+  const segs = [];
+  for(let i=1;i<m.points.length;i++){
+    const d = map.distance(m.points[i-1], m.points[i]);
+    total += d; segs.push(d);
+  }
+  const html = S.tool === "area"
+    ? `<b>面积</b> ${formatArea(total)}`
+    : `<b>总长度</b> ${total.toFixed(1)} m`;
+  $("mapMsg").innerHTML = html
+    + `<div class="kv" style="margin-top:4px">${segs.map((d,i)=>`<dt>第 ${i+1} 段</dt><dd>${d.toFixed(1)} m</dd>`).join("")}</div>`
+    + `<div class="muted" style="margin-top:4px">节点 ${m.points.length} 个 · 双击结束</div>`;
+  $("mapMsg").classList.add("show");
+}
+function formatArea(m2){
+  if(m2 > 1e6) return (m2/1e6).toFixed(3) + " km²";
+  if(m2 > 10000) return (m2/10000).toFixed(3) + " ha";
+  return m2.toFixed(1) + " m²";
+}
+
+// 单击识别：QGIS 的平移工具下，轻点（未拖动）同样触发识别
+let downPoint = null;
+map.on("mousedown", e=>{
+  downPoint = {x:e.originalEvent.clientX, y:e.originalEvent.clientY, button:e.originalEvent.button};
+});
+map.on("mouseup", e=>{
+  if(!downPoint || downPoint.button !== 0) { downPoint = null; return; }
+  const moved = Math.abs(e.originalEvent.clientX - downPoint.x) + Math.abs(e.originalEvent.clientY - downPoint.y);
+  downPoint = null;
+  if(moved > 4) return;
+  if(S.tool === "measure" || S.tool === "area"){
+    S.measure.points.push(e.latlng);
+    updateMeasure();
+    return;
+  }
+  identifyAt(e.latlng);
+});
+map.on("dblclick", e=>{
+  if(S.tool === "measure" || S.tool === "area"){
+    S.measure.points.pop();
+    updateMeasure();
+    L.DomEvent.stop(e);
+  }
+});
+map.on("contextmenu", e=> L.DomEvent.stop(e));
+
+// 右键框选缩放（QGIS 默认：右键拖动 = 放大）
+map.on("mousedown", e=>{
+  if(e.originalEvent.button !== 2) return;
+  const box = document.createElement("div");
+  box.className = "boxzoom";
+  map.getContainer().appendChild(box);
+  S.boxZoom = {el: box, start: e.containerPoint, map};
+});
+map.on("mousemove", e=>{
+  if(!S.boxZoom) return;
+  const s = S.boxZoom.start, c = e.containerPoint;
+  S.boxZoom.el.style.left = Math.min(s.x,c.x) + "px";
+  S.boxZoom.el.style.top = Math.min(s.y,c.y) + "px";
+  S.boxZoom.el.style.width = Math.abs(c.x - s.x) + "px";
+  S.boxZoom.el.style.height = Math.abs(c.y - s.y) + "px";
+});
+map.on("mouseup", e=>{
+  if(!S.boxZoom) return;
+  const s = S.boxZoom.start, c = e.containerPoint;
+  S.boxZoom.el.remove();
+  const bz = S.boxZoom;
+  S.boxZoom = null;
+  if(Math.abs(c.x - s.x) < 6 || Math.abs(c.y - s.y) < 6) return;
+  const nw = map.containerPointToLatLng([s.x, s.y]);
+  const se = map.containerPointToLatLng([c.x, c.y]);
+  if(e.originalEvent.ctrlKey) map.setView(map.unproject(map.project(se).subtract(map.project(nw))), map.getZoom() - 1);
+  else map.fitBounds([[nw.lat,nw.lng],[se.lat,se.lng]], {padding:[0,0]});
+});
+
+// ---------------------------------------------------------------- 识别要素
+async function identifyAt(latlng){
+  switchTab("paneIdent");
+  $("identResult").innerHTML = '<div class="hint">识别中…</div>';
+  tip("识别 " + latlng.lng.toFixed(5) + ", " + latlng.lat.toFixed(5));
+  try{
+    const q = await api(`/api/query/point?lon=${latlng.lng}&lat=${latlng.lat}`);
+    renderIdentify(q);
+  }catch(err){
+    $("identResult").innerHTML = `<div style="color:var(--rust)">${esc(err.message)}</div>`;
+  }
+}
+
+function renderIdentify(q){
+  const blocks = [];
+  for(const r of (q.rasters||[])){
+    if(r.error){ blocks.push(`<div class="ident-layer"><div class="h"><span class="lic ras">${svg("raster",13)}</span>${esc(r.layer_id)}</div><div class="b"><div style="color:var(--rust)">${esc(r.error)}</div></div></div>`); continue; }
+    const rows = [];
+    if(r.class_name) rows.push(["类别", r.class_name]);
+    if(r.value !== null && r.value !== undefined) rows.push(["值", r.value]);
+    rows.push(["图层", r.layer_id], ["数据集", r.dataset_id]);
+    blocks.push(`<div class="ident-layer">
+      <div class="h"><span class="lic ras">${svg("raster",13)}</span>${esc(r.layer_id)}</div>
+      <div class="b"><dl class="kv">${rows.map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(v??"—")}</dd>`).join("")}</dl></div>
+    </div>`);
+  }
+  for(const v of (q.vectors||[])){
+    if(v.error){ blocks.push(`<div class="ident-layer"><div class="h"><span class="lic vec">${svg("vector",13)}</span>${esc(v.layer_id)}</div><div class="b"><div style="color:var(--rust)">${esc(v.error)}</div></div></div>`); continue; }
+    const feats = (v.features||[]).map(f=>{
+      const rows = Object.entries(f.properties||{}).map(([k,val])=>[k, val]);
+      return `<div class="ident-feat"><div class="t">要素 #${esc(f.id)}</div>
+        <dl class="kv">${rows.map(([k,val])=>`<dt>${esc(k)}</dt><dd>${esc(val??"—")}</dd>`).join("")}</dl></div>`;
+    }).join("");
+    blocks.push(`<div class="ident-layer">
+      <div class="h"><span class="lic vec">${svg("vector",13)}</span>${esc(v.layer_id)} <span class="muted">命中 ${v.count} 个</span></div>
+      <div class="b">${feats || '<span class="muted">无命中要素</span>'}</div>
+    </div>`);
+  }
+  $("identResult").innerHTML =
+    `<div class="hint" style="margin-bottom:8px">位置 ${q.lon.toFixed(6)}, ${q.lat.toFixed(6)}</div>`
+    + (blocks.join("") || '<span class="muted">该位置没有命中任何图层</span>');
+}
+
+// ---------------------------------------------------------------- 图层属性
+function switchPropTab(tab){
+  S.propTab = tab;
+  document.querySelectorAll(".prop-tab").forEach(t=> t.classList.toggle("on", t.dataset.proptab === tab));
+  renderProps();
+}
+document.querySelectorAll(".prop-tab").forEach(t=>{
+  t.onclick = ()=> switchPropTab(t.dataset.proptab);
+});
+
+async function datasetDetail(datasetId){
+  if(!datasetId) return null;
+  if(!S.detailCache.has(datasetId)){
+    try{ S.detailCache.set(datasetId, await api(`/api/datasets/${encodeURIComponent(datasetId)}`)); }
+    catch(e){ S.detailCache.set(datasetId, null); }
+  }
+  return S.detailCache.get(datasetId);
+}
+
+function renderProps(){
+  const box = $("propBody");
+  const item = S.selected;
+  if(!item){ box.innerHTML = '<span class="muted">未选中图层</span>'; return; }
+  const l = item.layer || {};
+  const st = styleOf(item);
+  if(S.propTab === "general") return renderPropGeneral(box, item, l);
+  if(S.propTab === "symbology") return renderPropSymbology(box, item, l, st);
+  if(S.propTab === "transparency") return renderPropTransparency(box, item, st);
+  if(S.propTab === "source") return renderPropSource(box, item, l);
+}
+
+/** WKB 几何类型（QgsWkbTypes.Type）转中文名。 */
+const WKB_NAME = {
+  0:"未知",1:"点",2:"线",3:"面",4:"多点",5:"多线",6:"多面",
+  7:"无几何",8:"圆弧",9:"复合曲线",10:"曲线多段",11:"复合面",12:"曲面多段",
+};
+function wkbName(v){
+  if(v === undefined || v === null) return "—";
+  return WKB_NAME[v] ? `${WKB_NAME[v]}（${v}）` : String(v);
+}
+/** 栅格数据类型转中文。 */
+function rasterKindName(v){
+  if(v === "categorical") return "分类（离散）";
+  if(v === "continuous") return "连续";
+  return v ?? "—";
+}
+
+function renderPropGeneral(box, item, l){
+  const rows = item.type === "vector"
+    ? [["图层名称", l.title||item.ref],["图层类型","矢量图层"],["几何类型",wkbName(l.layer_kind)],
+       ["坐标系",l.crs],["要素数",l.feature_count],["数据集",l.dataset_id],
+       ["范围", (l.extent_wgs84||[]).map(v=>Number(v).toFixed(5)).join(" , ")]]
+    : item.type === "service"
+    ? [["图层名称", l.title||item.ref],["图层类型","服务图层"],["来源",l.url],["图层名",l.serviceLayer]]
+    : [["图层名称", l.title||item.ref],["图层类型","栅格图层"],
+       ["数据类型", l.truecolor ? "真彩色（RGB 合成）" : rasterKindName(l.layer_kind)],
+       ["坐标系",l.crs],["尺寸", l.width ? `${l.width} × ${l.height}` : "—"],
+       ["分辨率",(l.resolution||[]).map(v=>Number(v).toPrecision(6)).join(" , ")],
+       ["NoData",l.nodata??"—"],["数据集",l.dataset_id],
+       ["范围",(l.extent_wgs84||[]).map(v=>Number(v).toFixed(5)).join(" , ")]];
+  box.innerHTML = `<dl class="kv">${rows.map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(v??"—")}</dd>`).join("")}</dl>`;
+  if(l.classes && Object.keys(l.classes).length){
+    const cmap = colorMap(item.ref, l.classes);
+    box.innerHTML += `<div class="legend">${Object.entries(l.classes).map(([k,v])=>`
+      <div><span class="sw" style="background:${cmap[k]||"#555"}"></span>
+      <span style="min-width:78px">${esc(v)}</span><span class="muted">${esc(k)}</span></div>`).join("")}</div>`;
+  }
+}
+
+function renderPropSymbology(box, item, l, st){
+  if(item.type === "vector"){
+    box.innerHTML = `
+      <div class="fld"><label>颜色</label>
+        <input type="color" id="symColor" value="${vectorColor(item)}" style="width:60px;height:28px;padding:0;border:1px solid var(--line);border-radius:6px;background:var(--panel-2)"></div>
+      <div class="fld"><label>线宽（像素）</label>
+        <input type="number" id="symWidth" min="0.2" max="10" step="0.2" value="${st.width}"></div>
+      <div class="fld"><label>填充透明度 <span class="muted">${Math.round(st.fillOpacity*100)}%</span></label>
+        <input type="range" id="symFill" min="0" max="1" step="0.05" value="${st.fillOpacity}"></div>
+      <button class="btn primary" id="symApply">应用</button>`;
+    $("symApply").onclick = async ()=>{
+      st.color = $("symColor").value;
+      st.width = Number($("symWidth").value) || 1.6;
+      st.fillOpacity = Number($("symFill").value);
+      await drawLayer(item); renderTree(); renderProps();
+      tip("已应用符号样式");
+    };
+    return;
+  }
+  if(item.type === "service"){
+    box.innerHTML = '<div class="note info">服务图层由远程服务器直接渲染，此处不提供符号设置。</div>';
+    return;
+  }
+  // 栅格
+  if(isTruecolor(item)){
+    // 真彩色合成影像（遥感照片、Sentinel-2 这类多波段）。
+    // 默认按 **QGIS 的方式**合成红/绿/蓝三个波段显示 —— 跟桌面版一致。
+    // 单波段的假彩色只拿第 1 波段出图，绿色通道会被压没，整片发紫。
+    const modes = [["truecolor","真彩色（QGIS 默认）"],
+                   ["viridis","单波段 Viridis"],
+                   ["gray","单波段灰度"],
+                   ["spectral","单波段光谱（Spectral）"]];
+    box.innerHTML = `<div class="hint" style="margin-bottom:8px">真彩色合成影像：默认用 QGIS 的方式合成显示；选单波段则只看第 1 波段。</div>`
+      + modes.map(([k,n])=>`<label class="row" style="margin-bottom:6px;cursor:pointer">
+          <input type="radio" name="symMode" value="${k}" ${st.mode===k?"checked":""}> ${n}</label>`).join("")
+      + `<button class="btn primary" id="symApply" style="margin-top:8px">应用到地图</button>`;
+    $("symApply").onclick = async ()=>{
+      st.mode = document.querySelector("input[name=symMode]:checked")?.value || "truecolor";
+      await drawLayer(item); renderTree(); renderProps();
+      tip("已应用渲染模式：" + st.mode);
+    };
+    return;
+  }
+  if(l.layer_kind === "categorical" || (l.classes && Object.keys(l.classes).length)){    const cmap = colorMap(item.ref, l.classes||{});
+    const keys = Object.keys(l.classes||{});
+    box.innerHTML = `<div class="hint" style="margin-bottom:8px">分类渲染：每个取值一种颜色</div>`
+      + keys.map(k=>`<div class="fld" style="display:flex;align-items:center;gap:8px">
+          <input type="color" data-ckey="${esc(k)}" value="${cmap[k]||"#555555"}"
+                 style="width:44px;height:24px;padding:0;border:1px solid var(--line);border-radius:5px;background:var(--panel-2)">
+          <span style="flex:1">${esc(l.classes[k])}</span>
+          <span class="muted mono">${esc(k)}</span>
+        </div>`).join("")
+      + `<button class="btn primary" id="symApply">应用到地图</button>`;
+    $("symApply").onclick = async ()=>{
+      const next = {...cmap};
+      box.querySelectorAll("input[data-ckey]").forEach(inp=>{ next[inp.dataset.ckey] = inp.value; });
+      S.classColors.set(item.ref, next);
+      await drawLayer(item); renderTree(); renderProps();
+      tip("已应用分类配色");
+    };
+    return;
+  }
+  const modes = [["viridis","Viridis（默认）"],["gray","灰度"],["spectral","光谱（Spectral）"]];
+  box.innerHTML = `<div class="hint" style="margin-bottom:8px">单波段拉伸</div>`
+    + modes.map(([k,n])=>`<label class="row" style="margin-bottom:6px;cursor:pointer">
+        <input type="radio" name="symMode" value="${k}" ${st.mode===k?"checked":""}> ${n}</label>`).join("")
+    + `<button class="btn primary" id="symApply" style="margin-top:8px">应用到地图</button>`;
+  $("symApply").onclick = async ()=>{
+    st.mode = document.querySelector("input[name=symMode]:checked")?.value || "viridis";
+    await drawLayer(item); renderTree(); renderProps();
+    tip("已应用渲染模式：" + st.mode);
+  };
+}
+
+function renderPropTransparency(box, item, st){
+  box.innerHTML = `
+    <div class="fld"><label>图层透明度 <span class="muted" id="trVal">${Math.round(st.opacity*100)}%</span></label>
+      <input type="range" id="trRange" min="0" max="1" step="0.05" value="${st.opacity}"></div>
+    <div class="hint">QGIS 中该值同样作用于栅格与矢量图层。</div>`;
+  $("trRange").oninput = e=>{
+    st.opacity = Number(e.target.value);
+    $("trVal").textContent = Math.round(st.opacity*100) + "%";
+    const ov = S.overlays.get(item.ref);
+    if(ov && typeof ov.setOpacity === "function") ov.setOpacity(st.opacity);
+  };
+}
+
+function renderPropSource(box, item, l){
+  const rows = [["图层引用", item.ref],["数据集", l.dataset_id],["源文件", l.file||l.path||"—"],
+                ["坐标系", l.crs||"—"],["来源", l.source||"—"]];
+  box.innerHTML = `<dl class="kv">${rows.map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(v??"—")}</dd>`).join("")}</dl>`;
+  if(l.file){
+    box.innerHTML += `<div class="hint" style="margin-top:9px">原始文件</div><pre>${esc(l.file)}</pre>`;
+  }
+}
+
+function colorMap(ref, classes){
+  // 类别表还没加载出来时不要缓存空表，否则后补的配色永远生效不了
+  if(!classes || !Object.keys(classes).length) return {};
+  if(S.classColors.has(ref)) return S.classColors.get(ref);
+  const cmap = {};
+  Object.keys(classes).forEach((k,i)=> cmap[k] = PALETTE[i % PALETTE.length]);
+  S.classColors.set(ref, cmap);
+  return cmap;
+}
+
+// ---------------------------------------------------------------- 添加图层对话框
+const ADD_CATS = [
+  // 本地文件只列一个：矢量 / 栅格由服务端按扩展名自动识别，
+  // 没必要让用户先判断文件类型再决定点哪个「本地文件」（原来矢量、栅格下各有一个，
+  // 名字一模一样，看到的人只会懵）。
+  {id:"local-file", label:"本地文件", icon:"file"},
+  {id:"vector", label:"矢量图层", icon:"vector", parent:true},
+  {id:"vector-db", label:"空间数据库", icon:"db", child:true, parent:"vector"},
+  {id:"raster", label:"栅格图层", icon:"raster", parent:true},
+  {id:"xyz", label:"XYZ 瓦片", icon:"globe", child:true, parent:"raster"},
+  {id:"wms", label:"WMS", icon:"globe", child:true, parent:"raster"},
+  {id:"server", label:"服务器共享数据", icon:"folder", parent:true},
+];
+
+function openAddDialog(cat){
+  S.addCat = cat || S.addCat || "local-file";
+  renderAddTree();
+  renderAddForm();
+  $("dlgAdd").classList.add("show");
+  $("addOk").disabled = false;
+  $("addOk").textContent = "打开";
+}
+function closeAddDialog(){ $("dlgAdd").classList.remove("show"); }
+$("addClose").onclick = closeAddDialog;
+$("addCancel").onclick = closeAddDialog;
+// 点背景关闭：必须**按下时**也在背景上才算。
+// 只看 click 的 target 是不够的 —— 拖动把手之后浏览器会在「按下点」和「松开点」的
+// 共同祖先上派发 click，那个祖先可能正是模态背景 → 拖一下就把对话框关了。
+let _addDownOnBackdrop = false;
+$("dlgAdd").addEventListener("pointerdown", e => {
+  _addDownOnBackdrop = (e.target === $("dlgAdd"));
+});
+$("dlgAdd").onclick = e=>{
+  if (e.target === $("dlgAdd") && _addDownOnBackdrop) closeAddDialog();
+};
+
+function renderAddTree(){
+  $("addTree").innerHTML = ADD_CATS.map(c=>`
+    <div class="node ${c.parent?"parent":"child"} ${S.addCat===c.id?"on":""}" data-cat="${c.id}">
+      <span class="ic">${svg(c.icon,14)}</span>${esc(c.label)}
+    </div>`).join("");
+  $("addTree").querySelectorAll(".node").forEach(el=>{
+    el.onclick = ()=>{ S.addCat = el.dataset.cat; renderAddTree(); renderAddForm(); };
+  });
+}
+
+function renderAddForm(){
+  const box = $("addForm");
+  const st = S.addState;
+  if(S.addCat === "local-file"){
+    box.innerHTML = `
+      <div class="fld"><label>文件 <span class="req">*</span></label>
+        <input type="file" id="addFile" multiple
+               accept=".geojson,.json,.gpkg,.shp,.gml,.kml,.tif,.tiff,.img,.vrt">
+        <div class="desc">矢量（GeoJSON / GPKG / SHP / GML / KML）与栅格（GeoTIFF / IMG / VRT）都能传，<b>矢量还是栅格由服务端自动识别</b>，每个文件各成为一个数据集</div></div>
+      <div class="fld"><label>上传到</label>
+        <select id="addScope">
+          <option value="me">个人空间（只有你看得到）</option>
+          <option value="shared">共享空间（所有登录用户都能看到）</option>
+        </select></div>
+      <div class="note info">文件会先上传到服务器，再作为图层加入地图。可以一次选多个（矢量和栅格混着传也行）。</div>`;
+    $("addHint").textContent = "选择文件后点「打开」";
+  }else if(S.addCat === "xyz"){
+    box.innerHTML = `
+      <div class="fld"><label>URL 模板 <span class="req">*</span></label>
+        <input type="text" id="xyzUrl" value="${esc(st.xyzUrl||"https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png")}" placeholder="https://…/{z}/{x}/{y}.png">
+        <div class="desc">需含 {z} {x} {y} 占位符；{s} 会被替换为 a/b/c</div></div>
+      <div class="fld"><label>图层名称</label><input type="text" id="xyzName" value="${esc(st.xyzName||"XYZ 瓦片")}"></div>
+      <div class="fld"><label>子域</label><input type="text" id="xyzSub" value="${esc(st.xyzSub||"abc")}" placeholder="a,b,c"></div>
+      <div class="fld"><label>最大缩放级别</label><input type="number" id="xyzMax" value="${st.xyzMax??19}"></div>
+      <div class="note">XYZ 瓦片由远程服务器直接渲染到浏览器，不经过 QGIS 内核，因此不能作为 Processing 算法的输入。</div>`;
+    $("addHint").textContent = "填好参数后点「打开」";
+  }else if(S.addCat === "wms"){
+    box.innerHTML = `
+      <div class="fld"><label>服务 URL <span class="req">*</span></label>
+        <input type="text" id="wmsUrl" value="${esc(st.wmsUrl||"")}" placeholder="https://…/wms">
+        <div class="desc">GetCapabilities 地址或服务地址均可</div></div>
+      <div class="fld"><label>图层名 <span class="req">*</span></label>
+        <input type="text" id="wmsLayer" value="${esc(st.wmsLayer||"")}" placeholder="topp:states"></div>
+      <div class="fld"><label>图层名称</label><input type="text" id="wmsName" value="${esc(st.wmsName||"WMS 图层")}"></div>
+      <div class="fld"><label>版本</label><select id="wmsVer">
+        <option value="1.3.0">1.3.0</option><option value="1.1.1">1.1.1</option></select></div>
+      <div class="note">WMS 由远程服务器直接渲染到浏览器，不经过 QGIS 内核。</div>`;
+    $("addHint").textContent = "填好参数后点「打开」";
+  }else if(S.addCat === "vector-db"){
+    box.innerHTML = `
+      <div class="note">空间数据库数据源（PostgreSQL / Oracle / SQL Server 等）尚未接入本服务。
+        <br>当前内核没有捆绑数据库驱动，QGIS 桌面版的「添加矢量图层 → 数据库」暂不可用。
+        <br>可先把数据库导出成 GeoJSON / GPKG / SHP 再上传，或把数据放进服务器共享库目录。</div>`;
+    $("addHint").textContent = "该数据源暂不可用";
+  }else if(S.addCat === "server"){
+    // 服务器上已就绪的图层：勾选后点「打开」直接加载（QGIS 选完数据源即加载）
+    const byDs = new Map();
+    for(const l of S.layers){
+      if(!byDs.has(l.dataset_id)){
+        byDs.set(l.dataset_id, {name: l.dataset_name || l.dataset_id, source: l.source, scope: l.scope||"shared", layers: []});
+      }
+      byDs.get(l.dataset_id).layers.push(l);
+    }
+    const groups = [...byDs.values()];
+    if(!groups.length){
+      box.innerHTML = '<div class="hint">服务器上还没有可用图层。先用「本地文件」上传，或把数据放进共享库目录。</div>';
+    }else{
+      box.innerHTML = `<div class="hint" style="margin-bottom:10px">勾选要加入地图的图层，点「打开」直接加载。</div>`
+        + groups.map(g=>`
+          <div style="margin-bottom:13px">
+            <div class="hint" style="margin-bottom:5px;display:flex;gap:9px;align-items:baseline">
+              <span>${g.scope==="shared"?"共享空间":"个人空间"}</span>
+              <b style="color:var(--ink)">${esc(g.name)}</b>
+            </div>
+            ${g.layers.map(l=>`
+              <label class="row" style="margin-bottom:5px;cursor:pointer;gap:7px;flex-wrap:nowrap">
+                <input type="checkbox" data-ref="${esc(l.ref)}" style="width:auto;flex:0 0 auto;accent-color:var(--accent)">
+                <span class="tag ${l.kind==="vector"?"vec":"ras"}">${l.kind==="vector"?"矢":"栅"}</span>
+                <span style="flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(l.title||l.ref)}</span>
+                <span class="muted mono" style="font-size:10.5px;flex:0 0 auto">${esc(l.ref)}</span>
+              </label>`).join("")}
+          </div>`).join("");
+    }
+    $("addHint").textContent = groups.length ? "勾选图层后点「打开」" : "暂无可用图层";
+  }else{
+    box.innerHTML = '<div class="hint">请选择左侧的数据源类型</div>';
+    $("addHint").textContent = "";
+  }
+}
+
+$("addOk").onclick = async ()=>{
+  const st = S.addState;
+  if(S.addCat === "local-file"){
+    const inp = $("addFile");
+    if(!inp || !inp.files.length){ toast("请先选择文件"); return; }
+    const scope = ($("addScope")||{}).value || "me";
+    closeAddDialog();
+    const ok = await uploadFiles([...inp.files], true, scope);
+    if(ok) toast("已上传并加入地图");
+    // ok 为 false 时，uploadFiles 自己已经提示过「有几个文件没被识别成图层」，
+    // 这里不要再补一句「已加入地图」—— 那会把用户带偏。
+  }else if(S.addCat === "xyz"){
+    const url = $("xyzUrl").value.trim();
+    if(!url){ toast("请填写 URL 模板"); return; }
+    // **校验占位符**：不校验的话，填一个不含 {z}{x}{y} 的 URL 也会「成功」——
+    // 地图上多出一个永远加载不出瓦片的图层，界面一句提示都没有。
+    const missing = ["{z}", "{x}", "{y}"].filter(t => !url.includes(t));
+    if(missing.length){
+      toast("URL 模板缺少占位符：" + missing.join(" "));
+      return;
+    }
+    st.xyzUrl = url; st.xyzName = $("xyzName").value.trim() || "XYZ 瓦片";
+    st.xyzSub = $("xyzSub").value.trim() || "abc";
+    st.xyzMax = Number($("xyzMax").value) || 19;
+    const sub = st.xyzSub.split(",").map(s=>s.trim()).filter(Boolean);
+    const layer = L.tileLayer(url, {subdomains: sub, maxZoom: st.xyzMax, attribution:"XYZ"}).addTo(map);
+    const item = {ref:"service:xyz:"+Date.now(), type:"service", visible:true,
+                  layer:{title:st.xyzName, url, extent_wgs84:null}};
+    item.layer.tileLayer = layer;
+    S.active.unshift(item);
+    S.overlays.set(item.ref, layer);
+    renderTree(); selectLayer(item);
+    closeAddDialog();
+    toast("已添加 XYZ 瓦片图层");
+  }else if(S.addCat === "wms"){
+    const url = $("wmsUrl").value.trim();
+    const name = $("wmsLayer").value.trim();
+    if(!url || !name){ toast("请填写服务 URL 与图层名"); return; }
+    st.wmsUrl = url; st.wmsLayer = name; st.wmsName = $("wmsName").value.trim() || "WMS 图层";
+    const ver = $("wmsVer").value;
+    const layer = L.tileLayer.wms(url, {layers:name, version:ver, format:"image/jpeg", transparent:true}).addTo(map);
+    const item = {ref:"service:wms:"+Date.now(), type:"service", visible:true,
+                  layer:{title:st.wmsName, url, serviceLayer:name, extent_wgs84:null}};
+    item.layer.tileLayer = layer;
+    S.active.unshift(item);
+    S.overlays.set(item.ref, layer);
+    renderTree(); selectLayer(item);
+    closeAddDialog();
+    toast("已添加 WMS 图层");
+  }else if(S.addCat === "server"){
+    const picked = [...$("addForm").querySelectorAll("input[data-ref]:checked")].map(i=>i.dataset.ref);
+    if(!picked.length){ toast("请先勾选要加入的图层"); return; }
+    closeAddDialog();
+    for(const ref of picked){
+      const l = S.layers.find(x=>x.ref === ref);
+      if(l) await addLayer({...l, _type: l.kind === "vector" ? "vector" : "raster"});
+    }
+    toast(`已加入 ${picked.length} 个图层`);
+  }else if(S.addCat === "vector-db"){
+    toast("空间数据库数据源暂未接入");
+  }
+};
+
+// ---------------------------------------------------------------- 上传
+async function uploadFiles(files, addToMap, scope){
+  const fd = new FormData();
+  files.forEach(f=> fd.append("files", f, f.name));
+  const q = scope ? ("?scope=" + encodeURIComponent(scope)) : "";
+  try{
+    const r = await api("/api/uploads", {method:"POST", body:fd});
+    const ok = r.results.filter(x=>x.registered).length;
+    const bad = r.results.filter(x=>!x.registered);
+    // **别在没识别成功时还说「已上传并加入地图」** —— 那种「假成功」最坑人：
+    // 界面看着一切正常，地图上什么都没有，用户会以为是自己看错了。
+    if(bad.length){
+      bad.forEach(x=>console.warn("未识别：", x.filename, x.warning));
+      tip("有 " + bad.length + " 个文件没能识别成图层（"
+          + bad.map(x=>x.filename).join("、") + "）—— 原因见控制台；"
+          + "shapefile 要连 .dbf/.shx/.prj 一起上传");
+      toast("上传完成，但 " + bad.length + " 个文件没被识别成图层");
+    }else{
+      toast(`上传完成：${ok}/${r.results.length} 个文件已识别为图层`);
+    }
+    r.results.forEach(x=>{ if(x.warning) console.warn("图层提示：", x.filename, x.warning); });
+    // 数据集级告警要**给人看**，不能只丢进 console。比如「这个 tif 没有坐标系信息，
+    // 已按 EPSG:4326 解释」—— 少了这句，用户只会看到一张位置不对或空白的图。
+    const warns = [];
+    (r.results||[]).forEach(x=>{
+      (x.warnings||[]).forEach(w=>{ if(!warns.includes(w)) warns.push(w); });
+    });
+    await refreshData();
+    if(addToMap){
+      for(const item of r.results){
+        if(!item.registered) continue;
+        const detail = await api(`/api/datasets/${encodeURIComponent(item.dataset_id)}`);
+        const layers = [
+          ...Object.values(detail.layers).map(l=>({...l, _type:"raster"})),
+          ...Object.values(detail.vectors).map(l=>({...l, _type:"vector"})),
+        ];
+        for(const l of layers) await addLayer(l);
+      }
+    }
+    // 告警放在**加完图层之后**再显示：addLayer() 自己会写状态栏
+    // （「已添加图层：xxx」），先显示告警会被它顶掉。
+    if(warns.length){
+      warns.forEach(w=>console.warn("图层告警：", w));
+      tip("注意：" + warns.join("；"));
+      toast("图层有告警：" + warns[0] + (warns.length>1 ? `（共 ${warns.length} 条，看状态栏）` : ""));
+    }
+    // 返回「是不是**全部**都成了图层」—— 有文件没被识别时，调用方就不该说
+    // 「已上传并加入地图」。
+    return bad.length === 0;
+  }catch(err){
+    toast("上传失败：" + err.message);
+    return false;
+  }
+}
+
+// 拖文件到地图上直接加载（QGIS 的拖放行为）
+const mapEl = $("map");
+["dragenter","dragover"].forEach(ev=> mapEl.addEventListener(ev, e=>{
+  e.preventDefault(); e.stopPropagation();
+}));
+mapEl.addEventListener("drop", e=>{
+  e.preventDefault(); e.stopPropagation();
+  const files = [...(e.dataTransfer?.files||[])].filter(f=>/\.(tif|tiff|img|vrt|geojson|json|gpkg|shp|gml|kml)$/i.test(f.name));
+  if(files.length){ toast("正在加载拖入的文件…"); uploadFiles(files, true); }
+});
+document.addEventListener("dragover", e=> e.preventDefault());
+document.addEventListener("drop", e=> e.preventDefault());
+
+// ---------------------------------------------------------------- 数据
+async function refreshData(){
+  const [dsRes, lyRes] = await Promise.allSettled([
+    api("/api/datasets"),
+    api("/api/layers"),
+  ]);
+  if(dsRes.status === "fulfilled") S.datasets = dsRes.value.datasets || [];
+  if(lyRes.status === "fulfilled") S.layers = lyRes.value.layers || [];
+  if(dsRes.status === "rejected") toast("数据源加载失败：" + dsRes.reason.message);
+  if(lyRes.status === "rejected") toast("图层清单加载失败：" + lyRes.reason.message);
+  return { datasets: dsRes.status === "fulfilled", layers: lyRes.status === "fulfilled" };
+}
+
+async function rescanData(){
+  tip("正在重新扫描数据目录…");
+  try{
+    await api("/api/datasets/rescan", {method:"POST"});
+    S.detailCache.clear();
+    await refreshData();
+    tip("数据目录已重新扫描");
+    toast("扫描完成");
+  }catch(e){ tip("扫描失败：" + e.message); }
+}
+
+function showAbout(){
+  const rows = [
+    ["服务", "Browser QGIS"],
+    ["QGIS", $("stQgis").textContent],
+    ["Python", "3.12（QGIS 自带）"],
+    // **别写死**：算法数会随插件变（QGIS 自带 440 + 插件贡献的），
+    // 写死的数字过一阵就是错的。真值在 /api/meta 的 counts 里。
+    ["Processing 算法", String(S.algoCount || "—")],
+    ["REST", API + "/docs"],
+    ["MCP", "gisds（stdio）"],
+  ];
+  const box = $("aboutBox");
+  box.innerHTML = `<div style="padding:8px 10px;min-width:250px">
+      <div style="font-weight:650;margin-bottom:6px">关于本服务</div>
+      <dl class="kv">${rows.map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
+      <div class="hint" style="margin-top:8px">基于 PyQGIS 内核的通用 GIS 工作台</div>
+    </div>`;
+  box.style.left = "50%"; box.style.top = "50%"; box.style.transform = "translate(-50%,-50%)";
+  // **延到本次 click 事件之后再显示**。
+  // 菜单项的 click 会冒泡到 document，而 document 上有个「点外面就把弹出层收起来」
+  // 的监听 —— 同一个事件里刚加上 show 就被去掉，弹层**一帧都没显示过**
+  // （真踩过：「服务信息」和「关于本服务」两个菜单项点出来是空的）。
+  // 「关于」原来复用右键菜单那个元素，现在用独立的 #aboutBox，但冒泡的问题一样在，
+  // 所以这里统一延后一拍。
+  setTimeout(()=>{
+    box.classList.add("show");
+    setTimeout(()=>{ box.classList.remove("show"); box.style.transform = ""; }, 4000);
+  }, 0);
+}
+
+// ---------------------------------------------------------------- 工具箱
+let algoSearchTimer = null;
+$("algoSearch").addEventListener("input", e=>{
+  const needle = e.target.value.trim();
+  clearTimeout(algoSearchTimer);
+  if(!needle){ renderAlgoList(S.algos.slice(0,120)); return; }
+  // 交给服务端搜：中文名、中文说明、英文名、英文说明都能命中。
+  // 列表本身就不带英文字段 —— 440 个算法附带英文说明会让响应体翻倍。
+  algoSearchTimer = setTimeout(async ()=>{
+    try{
+      const r = await api("/api/processing/algorithms?q=" + encodeURIComponent(needle));
+      renderAlgoList((r.algorithms || []).slice(0,120));
+    }catch(err){ toast("搜索失败：" + err.message); }
+  }, 250);
+});
+
+function renderAlgoList(list){
+  const box = $("algoList");
+  if(!list.length){ box.innerHTML=`<div class="empty">没有匹配的算法</div>`; return; }
+  // 列表**不显示英文名**：请求里没带 include_en，服务端也就不会返回 name_en/group_en。
+  // 这是刻意的 —— 列表是用来「找算法」的，而：
+  //   * 搜索交给服务端，中文名/中文说明/英文名/英文说明都能命中
+  //     （搜 'buffer' 与搜 '缓冲区' 命中的是同一批算法）；
+  //   * 英文标识符（native:buffer）本来就在列表里显示着；
+  //   * 选中算法后的详情面板里有完整的中英名与中英说明。
+  // 带 include_en 会让 440 个算法的响应体从 172 KB 涨到 315 KB，换来的信息量为零。
+  box.innerHTML = list.map(a=>{
+    return `
+    <div class="algoitem ${S.currentAlgo&&S.currentAlgo.id===a.id?"on":""}" data-id="${esc(a.id)}">
+      <div class="n">${esc(a.name)}</div>
+      <div class="g">${esc(a.group)} · ${esc(a.id)}</div>
+    </div>`;
+  }).join("");
+  box.querySelectorAll(".algoitem").forEach(el=>{
+    el.onclick = ()=> selectAlgorithm(el.dataset.id);
+  });
+}
+
+async function selectAlgorithm(id){
+  switchTab("paneAlgo");
+  $("algoForm").innerHTML = "加载参数…";
+  try{
+    const info = await api(`/api/processing/algorithms/${encodeURIComponent(id)}`);
+    S.currentAlgo = info;
+    S.algoParams = info.parameters;
+    renderAlgoList(S.algos.slice(0,120));
+    renderAlgoForm(info);
+  }catch(err){ $("algoForm").innerHTML=`<span style="color:var(--rust)">${esc(err.message)}</span>`; }
+}
+
+function renderAlgoForm(info){
+  const box = $("algoForm");
+  const inputs = info.parameters.filter(p=>!["sink","vectorout","rasterout","fileout","folderout"].includes(p.type));
+  const outputs = info.parameters.filter(p=>["sink","vectorout","rasterout","fileout","folderout"].includes(p.type));
+
+  box.innerHTML = "";
+  const desc = document.createElement("div");
+  desc.className="hint";
+  desc.style.marginBottom="9px";
+  const enName = (info.name_en && info.name_en !== info.name) ? ` <span class="muted">${esc(info.name_en)}</span>` : "";
+  const enGroup = (info.group_en && info.group_en !== info.group) ? ` · ${esc(info.group_en)}` : "";
+  desc.innerHTML = `<b>${esc(info.name)}</b>${enName} <span class="muted">${esc(info.id)}</span>`
+    + `<br><span class="muted">${esc(info.group||"")}${enGroup}</span>`
+    + `<br>${esc(info.description||"").slice(0,220)}`;
+  box.appendChild(desc);
+
+  const form = document.createElement("div");
+  for(const p of inputs) form.appendChild(paramField(p, info));
+  for(const p of outputs) form.appendChild(paramField(p, info));
+  box.appendChild(form);
+
+  const sourceSelect = form.querySelector("select[data-role=layer]");
+  if(sourceSelect) sourceSelect.addEventListener("change", ()=> refreshFieldOptions(form, info));
+  refreshFieldOptions(form, info);
+
+  $("btnRun").disabled = false;
+}
+
+function paramField(p, info){
+  const wrap = document.createElement("div");
+  wrap.className = "fld";
+  const req = p.optional ? "" : " <span class='req'>*</span>";
+  let control = "";
+
+  if(["source","vector","raster"].includes(p.type)){
+    // "source" = QgsProcessingParameterFeatureSource，是**要素源**，只收矢量
+    //（QGIS 自己会拒栅格，但只给一句「无效值」）。原来这里把 source 当
+    // 「任意图层」，下拉框里**会列出栅格** —— 用户挑一个就撞上那句天书。
+    const want = p.type==="raster" ? "raster" : "vector";
+    const opts = S.layers.filter(l=> l.kind===want);
+    control = `<select data-role="layer" data-param="${esc(p.name)}">
+      <option value="">— 选择图层 —</option>
+      ${opts.map(l=>`<option value="${esc(l.ref)}">${esc(l.title||l.ref)} [${esc(l.ref)}]</option>`).join("")}
+    </select>`;
+  }else if(p.type==="enum"){
+    const opts = p.options||[];
+    const vals = (p.option_values && p.option_values.length===opts.length) ? p.option_values : opts;
+    const multi = !!p.multi;
+    let selected = [];
+    if(p.default_label !== undefined && p.default_label !== null){
+      selected = Array.isArray(p.default_label) ? p.default_label : [p.default_label];
+    }else if(typeof p.default === "number" && opts[p.default] !== undefined){
+      selected = [opts[p.default]];
+    }else if(typeof p.default === "string"){
+      selected = [p.default];
+    }
+    control = `<select data-param="${esc(p.name)}"${multi?' multiple size="5"':""}>
+      ${opts.map((o,i)=>{
+        const sel = selected.some(s=>String(s)===String(o)) ? "selected" : "";
+        return `<option value="${esc(vals[i])}" ${sel}>${esc(o)}</option>`;
+      }).join("")}
+    </select>`;
+  }else if(p.type==="boolean"){
+    control = `<div class="fld inline"><input type="checkbox" data-param="${esc(p.name)}" ${p.default?"checked":""}><label>${esc(p.description||p.name)}</label></div>`;
+    wrap.className = "fld inline";
+  }else if(p.type==="extent"){
+    control = `<div class="extent">
+      <input type="number" step="any" placeholder="minx" data-ext="${esc(p.name)}" data-i="0">
+      <input type="number" step="any" placeholder="miny" data-ext="${esc(p.name)}" data-i="1">
+      <input type="number" step="any" placeholder="maxx" data-ext="${esc(p.name)}" data-i="2">
+      <input type="number" step="any" placeholder="maxy" data-ext="${esc(p.name)}" data-i="3">
+    </div>`;
+  }else if(p.type==="field"){
+    control = `<select data-param="${esc(p.name)}" data-role="field"><option value="">— 随输入图层自动填充 —</option></select>`;
+  }else if(p.type==="number"||p.type==="distance"){
+    control = `<input type="number" step="any" data-param="${esc(p.name)}" value="${p.default??""}"
+      ${p.min!==undefined?`min="${p.min}"`:""} ${p.max!==undefined?`max="${p.max}"`:""}>`;
+  }else if(["sink","vectorout","rasterout","fileout","folderout"].includes(p.type)){
+    control = `<input type="text" data-param="${esc(p.name)}" placeholder="留空则自动生成到工作区">`;
+  }else{
+    control = `<input type="text" data-param="${esc(p.name)}" value="${esc(p.default??"")}">`;
+  }
+
+  if(wrap.className!=="fld inline"){
+    const pname = p.name && p.name !== p.description ? ` <span class="muted" style="font-weight:400">${esc(p.name)}</span>` : "";
+    wrap.innerHTML = `<label>${esc(p.description||p.name)}${pname}${req}</label>${control}
+      ${p.help?`<div class="desc">${esc(p.help).slice(0,160)}</div>`:""}`;
+  }else{
+    wrap.innerHTML = `${control}`;
+  }
+  return wrap;
+}
+
+async function refreshFieldOptions(form, info){
+  const srcSel = form.querySelector("select[data-role=layer]");
+  const fieldSels = form.querySelectorAll("select[data-role=field]");
+  if(!fieldSels.length) return;
+  const ref = srcSel?.value;
+  for(const fs of fieldSels){
+    const cur = fs.value;
+    fs.innerHTML = `<option value="">— 随输入图层自动填充 —</option>`;
+    if(!ref) continue;
+    let fields = S.fieldsCache.get(ref);
+    if(!fields){
+      try{
+        const parts = ref.split(":");
+        const r = await api(`/api/layers/${encodeURIComponent(parts[0])}/${encodeURIComponent(parts[1])}/fields`);
+        fields = r.fields||[];
+        S.fieldsCache.set(ref, fields);
+      }catch(e){ fields=[]; S.fieldsCache.set(ref, fields); }
+    }
+    fields.forEach(f=>{
+      const o = document.createElement("option");
+      o.value = f.name; o.textContent = f.name;
+      fs.appendChild(o);
+    });
+    if(cur) fs.value = cur;
+  }
+}
+
+function collectParams(){
+  const out = {};
+  const form = $("algoForm");
+  form.querySelectorAll("input[data-param],select[data-param]").forEach(el=>{
+    const name = el.dataset.param;
+    if(el.type==="checkbox") out[name] = el.checked;
+    else if(el.multiple){
+      const picked = Array.from(el.selectedOptions || []).map(o=>o.value);
+      if(picked.length) out[name] = picked;
+    }
+    else if(el.value!=="") out[name] = el.value;
+  });
+  const extGroups = {};
+  form.querySelectorAll("input[data-ext]").forEach(el=>{
+    (extGroups[el.dataset.ext] ||= [])[Number(el.dataset.i)] = el.value===""?null:Number(el.value);
+  });
+  for(const [name,vals] of Object.entries(extGroups)){
+    if(vals.every(v=>v!==null)) out[name]=vals;
+  }
+  return out;
+}
+
+$("btnRun").onclick = async ()=>{
+  if(!S.currentAlgo){ toast("先选一个算法"); return; }
+  const params = collectParams();
+  $("btnRun").disabled = true;
+  $("jobLog").textContent = "";
+  try{
+    const r = await api("/api/processing/run",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({algorithm:S.currentAlgo.id, parameters:params, name:S.currentAlgo.name})
+    });
+    S.jobId = r.job_id;
+    $("jobBar").style.width = "5%";
+    $("jobState").textContent = "作业已提交：" + r.job_id;
+    $("btnJobPoll").disabled = false;
+    startPolling();
+  }catch(err){
+    toast("提交失败："+err.message);
+    $("jobState").textContent = "提交失败："+err.message;
+  }finally{
+    $("btnRun").disabled = false;
+  }
+};
+
+$("btnJobPoll").onclick = ()=> pollJob();
+
+function startPolling(){ clearInterval(S.jobTimer); S.jobTimer = setInterval(pollJob, 900); }
+
+async function pollJob(){
+  if(!S.jobId) return;
+  try{
+    const j = await api(`/api/processing/jobs/${S.jobId}`);
+    const pct = j.status==="success"?100 : j.status==="failed"?100 : 35;
+    $("jobBar").style.width = pct+"%";
+    $("jobState").innerHTML = `<b>${esc(j.title)}</b> — ${esc(j.status)}${j.error?`<br><span style="color:var(--rust)">${esc(j.error)}</span>`:""}`;
+    if(j.logs?.length) $("jobLog").textContent = j.logs.join("\n");
+    if(j.status==="success"||j.status==="failed"){
+      clearInterval(S.jobTimer); S.jobTimer=null;
+      renderOutputs(j.outputs||{});
+    }
+  }catch(err){ /* 轮询失败忽略 */ }
+}
+
+function renderOutputs(outputs){
+  const box = $("jobOutputs");
+  const keys = Object.keys(outputs||{});
+  if(!keys.length){ box.innerHTML = `<div class="empty">无输出</div>`; return; }
+  box.innerHTML = keys.map(k=>{
+    const o = outputs[k];
+    if(o.kind==="file"){
+      return `<div style="margin-bottom:7px">
+        <div class="row" style="justify-content:space-between">
+          <b style="font-size:12px">${esc(k)}</b>
+          <span class="muted">${(o.size/1024).toFixed(1)} KB</span>
+        </div>
+        <div class="row" style="margin-top:4px">
+          <a class="btn sm" href="/api/processing/jobs/${S.jobId}/output/${encodeURIComponent(k)}" download>下载</a>
+          <button class="btn sm" onclick="addOutputToMap('${esc(k)}')">加到地图</button>
+        </div>
+      </div>`;
+    }
+    return `<div style="margin-bottom:6px"><b>${esc(k)}</b>: <span class="muted">${esc(JSON.stringify(o.value??o.name))}</span></div>`;
+  }).join("");
+}
+
+async function addOutputToMap(key){
+  try{
+    await api(`/api/processing/jobs/${S.jobId}/add-to-map`,{
+      method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({key})
+    });
+    await refreshData();
+    toast("结果已加入数据源，可在左栏浏览器中加载");
+  }catch(err){ toast("加入失败："+err.message); }
+}
+window.addOutputToMap = addOutputToMap;
+
+// ---------------------------------------------------------------- 标签页
+function switchTab(id){
+  document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("on", t.dataset.pane===id));
+  document.querySelectorAll(".tabpane").forEach(p=>p.classList.toggle("on", p.id===id));
+}
+document.querySelectorAll(".tab").forEach(t=> t.onclick = ()=>switchTab(t.dataset.pane));
+
+// 把 HTML 里的 data-ic 占位替换成描边 SVG 图标
+document.querySelectorAll("[data-ic]").forEach(el=>{
+  el.innerHTML = svg(el.dataset.ic, el.closest(".map-tools") ? 16 : 14);
+});
+
+// ---------------------------------------------------------------- 图层树按钮
+$("btnAddLayer").onclick = ()=> openAddDialog();
+$("btnLayerUp").onclick = ()=> moveLayer(S.selected, -1);
+$("btnLayerDown").onclick = ()=> moveLayer(S.selected, 1);
+$("btnLayerDel").onclick = ()=>{ if(S.selected) removeLayer(S.selected); };
+
+// ---------------------------------------------------------------- 快捷键
+document.addEventListener("keydown", e=>{  if(e.target.matches("input,textarea,select")) return;
+  const k = e.key.toLowerCase();
+  if(k === "p") setTool("pan");
+  else if(k === "i") setTool("identify");
+  else if(k === "r") setTool("measure");
+  else if(k === "t") setTool("area");
+  else if(k === "a"){ e.preventDefault(); openAddDialog(); }
+  else if(k === "delete" || k === "backspace"){ if(S.selected) removeLayer(S.selected); }
+  else if(k === "escape"){ closeDropdown(); $("ctxMenu").classList.remove("show"); closeAddDialog(); }
+  else if(k === "+" || k === "=") map.zoomIn();
+  else if(k === "-") map.zoomOut();
+});
+
+// ---------------------------------------------------------------- 启动
+// ---------------------------------------------------------------- 面板大小可调
+// QGIS 桌面版能拖着面板边框改大小，网页版也该有：
+//   * 左右两条侧栏的宽度
+//   * 工具箱里「算法列表 / 参数区」之间的高度
+// 尺寸存在 localStorage（刷新后还在）；双击把手恢复默认；方向键微调（无障碍）。
+
+const UI_KEY = "gisds.ui";
+const UI_DEF = {
+  left:  () => (window.innerWidth < 1360 ? 238 : 264),
+  right: () => (window.innerWidth < 1360 ? 348 : 392),
+  algo:  () => 210,
+};
+const UI_MIN = {left: 170, right: 250, algo: 80};
+const UI_MAX = {left: 620, right: 760, algo: 1400};
+
+function uiClamp(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); }
+function uiLoad(){
+  try{ return JSON.parse(localStorage.getItem(UI_KEY) || "{}") || {}; }catch(e){ return {}; }
+}
+function uiSave(s){
+  try{ localStorage.setItem(UI_KEY, JSON.stringify(s)); }catch(e){}
+}
+function uiApply(s){
+  const main = document.querySelector("main");
+  if(main){
+    main.style.setProperty("--w-left", s.left + "px");
+    main.style.setProperty("--w-right", s.right + "px");
+  }
+  const list = document.getElementById("algoList");
+  if(list) list.style.maxHeight = s.algo + "px";
+  // 地图容器变了大小，得告诉 Leaflet 重算 —— 不然瓦片会错位/留白
+  if(typeof map !== "undefined" && map && map.invalidateSize) map.invalidateSize();
+}
+
+function initResizable(){
+  const main = document.querySelector("main");
+  if(!main || !document.querySelector("aside.left") || !document.querySelector("aside.right")) return;
+
+  const saved = uiLoad();
+  const sizes = {
+    left:  uiClamp(saved.left  !== undefined ? saved.left  : UI_DEF.left(),  UI_MIN.left,  UI_MAX.left),
+    right: uiClamp(saved.right !== undefined ? saved.right : UI_DEF.right(), UI_MIN.right, UI_MAX.right),
+    algo:  uiClamp(saved.algo  !== undefined ? saved.algo  : UI_DEF.algo(),  UI_MIN.algo,  UI_MAX.algo),
+  };
+  uiApply(sizes);
+
+  // sign：把手往外拖，宽度是变大还是变小。
+  //   左栏把手在右边缘 —— 往右拖，左栏变宽（+1）
+  //   右栏把手在左边缘 —— 往右拖，右栏变窄（-1）
+  //   横把手在算法列表下方 —— 往下拖，列表变高（+1）
+  const bind = (grip, key, axis, sign) => {
+    if(!grip) return;
+    let start = 0, base = 0, raf = 0;
+    const paint = () => {
+      raf = 0;
+      uiApply(sizes);
+    };
+    const onMove = (e) => {
+      const cur = axis === "x" ? e.clientX : e.clientY;
+      const d = (cur - start) * sign;
+      sizes[key] = Math.round(uiClamp(base + d, UI_MIN[key], UI_MAX[key]));
+      if(!raf) raf = requestAnimationFrame(paint);
+    };
+    const onUp = () => {
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      document.body.classList.remove("resizing", "row");
+      grip.classList.remove("dragging");
+      if(raf){ cancelAnimationFrame(raf); raf = 0; }
+      uiApply(sizes);
+      uiSave(sizes);
+    };
+    grip.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      start = axis === "x" ? e.clientX : e.clientY;
+      base = sizes[key];
+      grip.classList.add("dragging");
+      document.body.classList.add("resizing");
+      if(axis === "y") document.body.classList.add("row");
+      document.addEventListener("pointermove", onMove);
+      document.addEventListener("pointerup", onUp);
+    });
+    grip.addEventListener("dblclick", () => {
+      sizes[key] = Math.round(UI_DEF[key]());
+      uiApply(sizes);
+      uiSave(sizes);
+    });
+    grip.addEventListener("keydown", (e) => {
+      const step = e.shiftKey ? 32 : 8;
+      let d = 0;
+      if(axis === "x"){
+        if(e.key === "ArrowLeft") d = -step * sign;
+        else if(e.key === "ArrowRight") d = step * sign;
+      }else{
+        if(e.key === "ArrowUp") d = -step * sign;
+        else if(e.key === "ArrowDown") d = step * sign;
+      }
+      if(!d) return;
+      e.preventDefault();
+      sizes[key] = Math.round(uiClamp(sizes[key] + d, UI_MIN[key], UI_MAX[key]));
+      uiApply(sizes);
+      uiSave(sizes);
+    });
+  };
+
+  bind(document.getElementById("gripLeft"), "left", "x", 1);
+  bind(document.getElementById("gripRight"), "right", "x", -1);
+  bind(document.getElementById("gripAlgo"), "algo", "y", 1);
+
+  initDialogGrips();
+}
+
+// 「添加图层」对话框：整体大小（右下角把手）+ 左侧树宽度
+function initDialogGrips(){
+  const dlg = document.querySelector("#dlgAdd .dlg");
+  const dlgBody = document.querySelector("#dlgAdd .dlg-body");
+  const gAll = document.getElementById("gripDlgAdd");
+  const gTree = document.getElementById("gripAddTree");
+
+  if(dlg && gAll){
+    let sx = 0, sy = 0, w0 = 0, h0 = 0;
+    const move = (e) => {
+      dlg.style.width = Math.max(360, w0 + (e.clientX - sx)) + "px";
+      dlg.style.height = Math.max(260, h0 + (e.clientY - sy)) + "px";
+    };
+    const up = () => {
+      document.removeEventListener("pointermove", move);
+      document.removeEventListener("pointerup", up);
+      document.body.classList.remove("resizing");
+      gAll.classList.remove("dragging");
+    };
+    gAll.addEventListener("pointerdown", (e) => {
+      e.preventDefault(); e.stopPropagation();
+      sx = e.clientX; sy = e.clientY;
+      const r = dlg.getBoundingClientRect();
+      w0 = r.width; h0 = r.height;
+      gAll.classList.add("dragging");
+      document.body.classList.add("resizing");
+      document.addEventListener("pointermove", move);
+      document.addEventListener("pointerup", up);
+    });
+    gAll.addEventListener("dblclick", () => { dlg.style.width = ""; dlg.style.height = ""; });
+  }
+
+  if(dlgBody && gTree){
+    let sx = 0, base = 198;
+    const move = (e) => {
+      const v = uiClamp(base + (e.clientX - sx), 120, 460);
+      dlgBody.style.setProperty("--dlg-tree", v + "px");
+    };
+    const up = () => {
+      document.removeEventListener("pointermove", move);
+      document.removeEventListener("pointerup", up);
+      document.body.classList.remove("resizing");
+      gTree.classList.remove("dragging");
+    };
+    gTree.addEventListener("pointerdown", (e) => {
+      e.preventDefault(); e.stopPropagation();
+      sx = e.clientX;
+      base = Math.round(document.getElementById("addTree").getBoundingClientRect().width);
+      gTree.classList.add("dragging");
+      document.body.classList.add("resizing");
+      document.addEventListener("pointermove", move);
+      document.addEventListener("pointerup", up);
+    });
+    gTree.addEventListener("dblclick", () => { dlgBody.style.removeProperty("--dlg-tree"); });
+  }
+}
+
+async function boot(){
+  tip("正在连接服务…");
+  // 面板大小（左右侧栏宽度、工具箱内分割高度）—— 越早应用越好，
+  // 免得页面先按默认宽度排一遍再跳一下。
+  initResizable();
+  // 先问**就绪**（/readyz）：它不碰数据目录，启动期间回 503。
+  // 不先问它就直接调 /api/meta 的话，那会触发一次数据目录扫描、
+  // 阻塞在 QGIS 工作线程上 —— 页面就卡在那儿不动了。
+  try{
+    await api("/readyz");
+  }catch(e){
+    const starting = /503/.test(e.message || "");
+    // 灰点 = 还在启动（没 ok 也没 bad）
+    $("statusDot").className = "dot";
+    $("statusText").textContent = starting ? "服务启动中" : "无法连接服务";
+    if(starting){
+      tip("服务正在启动（PyQGIS 初始化、Processing 装载中），几秒后自动重试");
+      setTimeout(() => location.reload(), 3000);
+      return;
+    }
+    tip("无法连接服务：" + e.message);
+    toast("无法连接服务：" + e.message);
+    return;
+  }
+  // 先问服务端要不要登录
+  try{
+    const meta0 = await api("/api/meta");
+    if(meta0.config && meta0.config.require_login && !sessionToken()){ goLogin(); return; }
+  }catch(e){ /* 继续往下走，下面会报连接错误 */ }
+  try{
+    const [health, meta] = await Promise.all([api("/healthz"), api("/api/meta")]);
+    $("statusDot").className = "dot ok";
+    $("statusText").textContent = "服务正常";
+    $("stQgis").textContent = health.qgis?.qgis_version || "?";
+    $("stCrs").textContent = "EPSG:4326";
+    // 算法数存一份（「关于本服务」要用，别写死 440 —— 插件会贡献算法）
+    S.algoCount = meta.counts.processing_algorithms;
+    tip("就绪 · " + meta.counts.datasets + " 个数据集 · " + meta.counts.processing_algorithms + " 个算法");
+  }catch(e){
+    $("statusDot").className = "dot bad";
+    $("statusText").textContent = "无法连接服务";
+    tip("无法连接服务：" + e.message);
+    toast("无法连接服务：" + e.message);
+    return;
+  }
+  const [dataRes, algoRes] = await Promise.allSettled([
+    refreshData(),
+    api("/api/processing/algorithms").then(a=>{
+      S.algos = a.algorithms || [];
+      S.algoGroups = a.groups || [];
+      S.algoProviders = a.providers || [];
+      renderAlgoList(S.algos.slice(0,120));
+      const note = $("algoNote");
+      if(note) note.textContent = `QGIS Processing 工具箱，共 ${S.algos.length} 个算法（中文名称来自 QGIS 官方翻译）。选算法 → 填参数 → 运行。`;
+      // 空 provider（例如 GRASS 本体没装好）要在界面上说清楚，
+      // 否则用户会以为是分组空了
+      const empty = S.algoProviders.filter(p=>p.available === false);
+      if(empty.length){
+        const box = $("algoWarn");
+        if(box){
+          box.style.display = "";
+          box.innerHTML = `⚠ 以下算法提供者未就绪，没有可用算法：`
+            + empty.map(p=>`<b>${esc(p.name||p.id)}</b>（${esc(p.id)}）`).join("、")
+            + `。`;
+        }
+      }
+    }),
+  ]);
+  if(dataRes.status === "rejected") toast("数据加载失败：" + dataRes.reason.message);
+  if(algoRes.status === "rejected"){
+    $("algoList").innerHTML = `<div class="empty">算法清单加载失败：${esc(algoRes.reason.message)}</div>`;
+  }
+  updateStatusBar(null);
+  setTool("pan");
+  await initBasemap();
+}
+boot();
+</script>
+<!-- QGIS 桌面版工具栏 + 面板（属性表 / 统计 / 选择 / 空间书签 / 日志 / 处理历史） -->
+<script src="/static/panels.js"></script>
+<!-- 左右侧栏可收起（QGIS 的停靠窗那样：收掉后屏幕边缘留一条把手） -->
+<script src="/static/sidefold.js"></script>
+<!-- 项目属性对话框（QGIS 那套分区导航 + 坐标参考系查阅器） -->
+<script src="/static/settings.js"></script>
+<!-- 文件浏览器（浏览各空间的文件、上传 / 下载 / 删除、双击加进地图） -->
+<script src="/static/files.js"></script>
+<!-- Python 控制台（在服务端执行 Python，底部抽屉） -->
+<script src="/static/console.js"></script>
+<!-- 插件（插件管理器 + 插件贡献的面板 / 菜单项） -->
+<script src="/static/plugins.js"></script>
+<!-- AI 助手（网页内嵌聊天面板：调模型 + 调 QGIS 工具） -->
+<script src="/static/ai.js"></script>
+<!-- 管理员分区（用户 / 空间 / 审计 / 配置；只有管理员登录后才出现） -->
+<script src="/static/admin.js"></script>
+</body>
+</html>

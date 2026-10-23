@@ -1,0 +1,31 @@
+{
+  "name": "示例数据（合成）",
+  "description": "用于验证服务链路的合成样例，不代表真实调查结果。",
+  "crs": "EPSG:4326",
+  "layers": {
+    "classes": {
+      "file": "classes.tif",
+      "kind": "categorical",
+      "title": "分区（离散）",
+      "classes": {
+        "1": "类别一",
+        "2": "类别二",
+        "3": "类别三",
+        "4": "类别四",
+        "5": "类别五",
+        "6": "类别六"
+      }
+    },
+    "surface": {
+      "file": "surface.tif",
+      "kind": "continuous",
+      "title": "曲面（连续）"
+    }
+  },
+  "vectors": {
+    "boundary": {
+      "file": "boundary.geojson",
+      "title": "示例范围"
+    }
+  }
+}
