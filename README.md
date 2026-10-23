@@ -48,7 +48,7 @@ Web 层依赖（FastAPI / uvicorn / MCP SDK 等）装在项目自己的 `deps\` 
 **不污染 QGIS 自带的 Python**。首次使用执行一次：
 
 ```powershell
-cd D:\MiniMax\gis-data-server
+cd <本项目解压后的目录>
 .\setup.ps1
 ```
 
