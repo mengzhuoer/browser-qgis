@@ -490,19 +490,37 @@ http://127.0.0.1:8848/ 打开就是工作台。**界面与操作逻辑对齐 QGI
 
 ### 这台机器开着什么、怎么收紧
 
-本项目自带的 `config.json` 是**给局域网内共用**的一套配置，四条设置叠在一起时
+**发行包里带的 `config.json` 是「给局域网内同事共用」的一套配置**，四条设置叠在一起时
 风险是叠加的。逐条列出，**每条都有一行就能关掉**：
 
-| 配置项 | 本机值 | 意味着 | 想收紧就 |
+| 配置项 | 发行包里的值 | 意味着 | 想收紧就 |
 | --- | --- | --- | --- |
 | `host` | `0.0.0.0` | 局域网内**任何设备**都能访问这台服务 | 改成 `127.0.0.1`（只本机），或放到反代后面 |
-| `super_admin_password` | `（空 = 不开）` | 拿到这组口令就是管理员（管账号 / 删数据 / 跑 Python） | **仓库里默认就是空的**；要开就自己填一个，要关就清空或写成 `off` |
+| `super_admin_password` | `（空 = 不开）` | 拿到这组口令就是管理员（管账号 / 删数据 / 跑 Python） | **发行包里默认就是空的**；要开就自己填一个，要关就清空或写成 `off` |
 | `console_access` | `user` | **任何登录用户**都能在这台机器上执行 Python 代码 | 改成 `admin`（仅管理员）或 `off`（整个关掉） |
 | `cors_origins` | `["*"]` | 任意来源的网页都能读本服务的**免鉴权**接口（如底图瓦片） | 收成实际来源，如 `["http://127.0.0.1:8848"]` |
 
+> ### ⚠️ `console_access` 这一条请认真对待
+>
+> Python 控制台执行的是**任意 Python 代码**，和这个服务进程**平权** ——
+> 能跑代码就能读该账号能读的一切数据、能写文件、能起进程、能连出去。
+> 它不是「调试小工具」，是**远程代码执行入口**。
+>
+> 发行包给的是 `user`（局域网内同事都能用），这是按「同事之间互相方便」的用途定的。
+> **如果你的部署要面向更广的人群 —— 公网开放、跨单位使用、多租户 —— 请把这一项
+> 当成第一件要改的事**：
+>
+> * `admin` —— 只有管理员能开控制台，需要放开时由管理员单独授权；
+> * `off` —— 整个关掉，不给任何人留这个口子。
+>
+> 改 `config.json` 里的 `console_access`，然后**重启服务**才生效 ——
+> 配置在进程启动时读一次就缓存住了（`gisds/api/deps.py` 里的 `get_config()`），
+> 管理员分区的「配置」页是**只读展示**，那里能一眼看到当前值，但不能直接改。
+
 代码里的**默认值**是收紧的（`console_access` 默认 `admin`、`super_admin_password` 默认空）——
-`config.json` 才是「本机部署」的选择。别人拿去用、忘了改这几项时，
-拿到的是「只有管理员能跑代码、没有共享万能账号」的收紧状态。
+`config.json` 才是「本机部署」的选择。**从 GitHub 克隆的人拿到的
+`config.example.json` 里 `console_access` 就是 `admin`**（比发行包更严一档），
+别人拿去用、忘了改这几项时，拿到的是「只有管理员能跑代码、没有共享万能账号」的收紧状态。
 
 ### 内置离线底图
 
@@ -1054,6 +1072,40 @@ qgis 44 + pdal 17 + 3d 1），provider 数仍是 9。
 会当场用新位置起一次 PyQGIS，并断言 `sys.path` 里**没有**原安装路径的残留；
 改完 `run-qgis-python.bat` 之后（优先用旁边的 `qgis\`），整套自检会**对着捆绑运行时
 跑一遍**（`logs\run_standalone_*.txt`）。
+
+---
+
+### 把发行包挂到 GitHub Releases（不进 git 仓库）
+
+`release/` 整个目录在 `.gitignore` 里 —— **二进制发行包不进版本库**，原因很实在：
+
+| 包 | 体积 | 能不能进 git 仓库 |
+| --- | --- | --- |
+| `BrowserQGIS-1.1.0.zip` | 19 MB | 技术上能（< 100 MB），但每次 clone 都得多拖 19 MB，而且二进制一改，历史就永久膨胀 |
+| `BrowserQGIS-1.1.0-standalone.zip` | 525 MB | **不能** —— GitHub 硬拦仓库里超过 100 MiB 的文件（要跟踪只能用 Git LFS） |
+
+正确做法是**用 GitHub Releases 挂附件**：二进制只存一份，标签仍然指向源码，
+下载的人从 Release 页面直接拿 zip。Release 的**单个附件上限是 2 GB**，525 MB 放得下。
+
+```powershell
+# 1. 打两个包
+powershell -NoProfile -ExecutionPolicy Bypass -File pack-release.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File pack-release.ps1 -Standalone
+
+# 2. 打标签（标签留在源码上）
+git tag -a v1.1.0 -m "Browser QGIS 1.1.0"
+git push origin v1.1.0
+
+# 3. 挂附件到 Release
+gh release create v1.1.0 `
+  release\BrowserQGIS-1.1.0.zip `
+  release\BrowserQGIS-1.1.0-standalone.zip `
+  --title "Browser QGIS 1.1.0" `
+  --notes-file RELEASE_NOTES.md
+```
+
+没装 `gh` 的话，网页上开
+<https://github.com/<你的账号>/<仓库名>/releases/new> → 选 tag → 把两个 zip 拖进去即可。
 
 ---
 
