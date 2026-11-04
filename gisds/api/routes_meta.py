@@ -85,6 +85,7 @@ async def meta() -> dict:
             "port": config.port,
             "cors_origins": config.cors_origins,
             "require_login": config.require_login,
+            "passwordless_login": config.passwordless_login,
             "allow_registration": config.allow_registration,
             "max_upload_mb": config.max_upload_mb,
         },

@@ -248,6 +248,42 @@ class AuthService:
 
     def login(self, username: str, password: str) -> tuple[str, dict[str, Any]]:
         user = self.authenticate(username, password)
+        return self._issue_session(user)
+
+    def claim_by_username(self, username: str) -> tuple[str, dict[str, Any]]:
+        """免口令登录：**用户名就是身份**，账号不存在就当场建一个。
+
+        这就是「不用密码」的全部含义 —— 同名即同人，
+        同一个用户名在任何设备上都是同一个空间。
+
+        两条护栏：
+
+        * 管理员账号**不能**被免口令认领 —— 否则知道管理员用户名的人
+          一进来就是管理员（能管账号、删数据、跑 Python）。
+          管理员请走正常的密码登录。
+        * 自动建出来的账号配一个**随机口令** —— 免口令模式是唯一入口，
+          不留「哪天模式关了还能用旧密码登进来」的暗门。
+        """
+        name = (username or "").strip()
+        if not name or len(name) < 3:
+            raise AuthError("用户名至少 3 个字符")
+        if len(name) > 32:
+            raise AuthError("用户名最多 32 个字符")
+
+        user = self.db.get_user_by_name(name)
+        if user is None:
+            user = self.register(name, secrets.token_urlsafe(16), display_name=name)
+            self.db.log(user["id"], user["username"], "user.claim", name)
+        if user["role"] == ROLE_ADMIN:
+            raise AuthzError("管理员账号请用密码登录，不要用免口令入口")
+        if user["status"] != STATUS_ACTIVE:
+            self.db.log(user["id"], user["username"], "user.login_disabled", name)
+            raise AuthzError("账号已被停用")
+        self.db.update_user(user["id"], last_login_at=time.time())
+        self.db.log(user["id"], user["username"], "user.login", user["username"])
+        return self._issue_session(user)
+
+    def _issue_session(self, user: dict[str, Any]) -> tuple[str, dict[str, Any]]:
         token = secrets.token_urlsafe(TOKEN_BYTES)
         self.db.create_session(token_hash(token), user["id"], time.time() + SESSION_TTL)
         return token, user

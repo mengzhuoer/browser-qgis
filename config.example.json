@@ -4,6 +4,7 @@
   "users_root": "data/users",
   "db_path": "data/gisds.db",
   "require_login": true,
+  "passwordless_login": false,
   "allow_registration": false,
   "admin_username": "admin",
   "admin_password": "",

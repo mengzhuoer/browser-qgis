@@ -69,6 +69,8 @@ if (-not $SkipDeps) { $includeDirs += 'deps' }
 
 $includeFiles = @(
     'config.json',
+    'config.example.json',
+    'config.open.json',
     'requirements.txt',
     'symbology-style.db',
     'LICENSE',
@@ -77,10 +79,12 @@ $includeFiles = @(
     'doctor.bat',
     'launcher.bat',
     'launcher-files.bat',
+    'launcher-open.bat',
     'mcp.bat',
     'run-qgis-python.bat',
     'setup.ps1',
     'start.bat',
+    'start-open.bat',
     'start.ps1',
     'pack-release.ps1',
     'prepare-qgis-runtime.ps1'
@@ -306,20 +310,46 @@ try {
         }
     }
 
+    # 4c) the "open" preset must not smuggle a credential either.
+    #     It carries no password by design, but a hand-edit could add one.
+    $openEntry = $archive.GetEntry("$pkgName/config.open.json")
+    if ($null -eq $openEntry) {
+        $problems.Add("package has no config.open.json")
+    } else {
+        $sr = New-Object System.IO.StreamReader($openEntry.Open(), [System.Text.Encoding]::UTF8)
+        $openText = $sr.ReadToEnd()
+        $sr.Close()
+        $pkgOpen = $openText | ConvertFrom-Json
+        foreach ($k in $secretConfigKeys) {
+            if ($pkgOpen.PSObject.Properties.Name -contains $k) {
+                if (([string]$pkgOpen.$k).Trim() -ne '') {
+                    $problems.Add("config.open.json in the package has a password in '$k'")
+                }
+            }
+        }
+    }
+
     # 5) the things that MUST be there
     $mustHave = @(
         "$pkgName/config.json",
+        "$pkgName/config.open.json",
         "$pkgName/README.md",
         "$pkgName/LICENSE",
         "$pkgName/run-qgis-python.bat",
         "$pkgName/start.bat",
+        "$pkgName/start-open.bat",
+        "$pkgName/launcher-open.bat",
         "$pkgName/gisds/core/gis_tools.py",
         "$pkgName/gisds/core/llm.py",
         "$pkgName/gisds/core/ai.py",
+        "$pkgName/gisds/core/i18n.py",
+        "$pkgName/gisds/core/processing.py",
         "$pkgName/gisds/api/routes_ai.py",
         "$pkgName/web/ai.js",
+        "$pkgName/web/login.html",
         "$pkgName/web/index.html",
-        "$pkgName/web/vendor/leaflet.js"
+        "$pkgName/web/vendor/leaflet.js",
+        "$pkgName/tests/check_passwordless.py"
     )
     foreach ($m in $mustHave) {
         if ($names -notcontains $m) { $problems.Add("missing from package: $m") }

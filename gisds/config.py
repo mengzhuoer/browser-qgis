@@ -29,6 +29,15 @@ class Config:
     db_path: str = str(PROJECT_ROOT / "data" / "gisds.db")
     # 是否要求登录才能取数。关掉就是「免登录模式」，所有人共用共享空间
     require_login: bool = True
+    # 免口令模式：登录只要一个用户名，不要密码。
+    #
+    # 账号**照常存在** —— 每个人一个独立空间（data/users/<user_id>），
+    # 但谁想用就填个用户名直接进，不用记密码、不用注册。
+    # 同一个用户名在任何设备上都是同一个空间。
+    #
+    # 这是给「局域网里放着给同事/学生/客人直接用」的场景准备的，
+    # **不是给公网用的**：知道用户名就能进那个人的空间。
+    passwordless_login: bool = False
     # 是否开放自助注册
     allow_registration: bool = False
     # 首个管理员的用户名（GUI 首次启动时自动创建）
@@ -178,10 +187,26 @@ def _coerce(current: Any, raw: str) -> Any:
 
 
 def load_config(path: str | Path | None = None) -> Config:
-    """从 config.json + 环境变量装载配置。"""
+    """从 config.json + 环境变量装载配置。
+
+    配置文件的取用顺序：**命令行 --config > 环境变量 GISDS_CONFIG >
+    项目根目录的 config.json**。
+
+    ``GISDS_CONFIG`` 这一层是给「免口令预设」准备的：启动器把服务起起来时
+    用的是固定的 ``-m gisds serve``（不带 --config），没法在命令行上换配置；
+    让它认这个环境变量，就能用另一个 .bat 设好环境变量再调启动器，
+    从而把服务起在免口令模式上，而不用改启动器自己的代码。
+    """
     cfg = Config()
 
-    cfg_path = Path(path) if path else DEFAULT_CONFIG_PATH
+    if path:
+        cfg_path = Path(path)
+    elif os.environ.get("GISDS_CONFIG"):
+        cfg_path = Path(os.environ["GISDS_CONFIG"]).expanduser()
+    else:
+        cfg_path = DEFAULT_CONFIG_PATH
+    if not cfg_path.is_absolute():
+        cfg_path = PROJECT_ROOT / cfg_path
     if cfg_path.is_file():
         try:
             raw = json.loads(cfg_path.read_text(encoding="utf-8"))
@@ -199,6 +224,7 @@ def load_config(path: str | Path | None = None) -> Config:
         "GISDS_USERS_ROOT": "users_root",
         "GISDS_DB_PATH": "db_path",
         "GISDS_REQUIRE_LOGIN": "require_login",
+        "GISDS_PASSWORDLESS_LOGIN": "passwordless_login",
         "GISDS_ALLOW_REGISTRATION": "allow_registration",
         "GISDS_ADMIN_USERNAME": "admin_username",
         "GISDS_ADMIN_PASSWORD": "admin_password",

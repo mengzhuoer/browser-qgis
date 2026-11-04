@@ -29,6 +29,7 @@ $qgisTests = @(
     'tests\check_core.py',
     'tests\check_api.py',
     'tests\check_auth.py',
+    'tests\check_passwordless.py',
     'tests\check_mcp.py',
     'tests\check_mcp_stdio.py',
     'tests\check_mcp_panels.py',

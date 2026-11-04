@@ -260,6 +260,59 @@ GET    /api/admin/audit       审计日志（管理员）
 - **图层引用按调用者过滤**：`数据集:图层` 的引用要通过空间可见性检查；
   「按磁盘路径引用图层」也只认数据根目录里面的文件。
 
+### 免口令模式（只有账号，不要密码）
+
+`passwordless_login: true` —— 登录**只要一个用户名**：不要密码、不用注册。
+账号照常存在，每人有自己的独立空间（`data/users/<用户ID>/`），
+**同一个用户名在任何设备上都是同一个空间**（换台电脑接着干，数据还在）。
+
+给「局域网里放着给同事 / 学生 / 客人直接用」的场景准备的。
+
+```bat
+start-open.bat
+```
+
+要图形启动器就用这个（服务起在免口令模式，账号管理那些照旧）：
+
+```bat
+launcher-open.bat
+```
+
+**怎么用：**
+
+1. 双击启动脚本。窗口里会打印本机局域网地址，同一网络的设备浏览器打开它就行。
+2. 页面只让填用户名，按「进入」直接进控制台。
+3. 共享空间人人可读可写；个人空间只有本人看得见。
+
+**它跟 `require_login: false` 有什么区别** —— 两个都不要密码，但不是一回事：
+
+| | `require_login: false` | `passwordless_login: true` |
+| --- | --- | --- |
+| 要不要填用户名 | 不用 | **要**（它就是身份） |
+| 每人独立空间 | **没有**，所有人共用共享空间 | **有**，各自一份 |
+| 上传的东西别人看得到 | 都看得到 | 个人空间的看不到，共享空间的看得到 |
+
+**两条护栏：**
+
+- **管理员账号不能被免口令顶替** —— 否则知道管理员用户名的人免口令进来
+  就是管理员（能管账号、删数据、跑 Python）。所以免口令只认**普通账号**，
+  管理员照常用密码登录。
+- **自动建出来的账号配的是随机口令** —— 免口令是唯一入口，
+  不留「哪天模式关了还能拿旧密码登进来」的暗门。
+
+**要注意的**：免口令模式下**知道用户名就能进那个人的空间**。
+只适合可信的局域网；要接公网请先把 `passwordless_login` 关掉。
+
+接口上多了一个免口令入口：
+
+```
+POST   /api/auth/claim         免口令进入：只要 username
+```
+
+`POST /api/auth/login` 在免口令模式下留空密码也能进；带密码仍然走正常校验。
+`GET /api/auth/config` 和 `GET /api/meta` 都会带上 `passwordless_login` 开关，
+登录页据此把密码框藏掉。
+
 ---
 
 ## 网页控制台
@@ -1251,6 +1304,7 @@ data/
   "users_root": "data/users",
   "db_path": "data/gisds.db",
   "require_login": true,
+  "passwordless_login": false,
   "allow_registration": false,
   "admin_username": "admin",
   "admin_password": "",
@@ -1279,6 +1333,9 @@ data/
 常用开关：
 
 * `require_login: false` —— 免登录模式，所有人共用共享空间
+* `passwordless_login: true` —— **免口令模式**：登录只要一个用户名，
+  账号照常存在、各人有各的空间。用 `start-open.bat` / `launcher-open.bat`
+  起（预设文件是 `config.open.json`）。详见上面「免口令模式」一节。
 * `allow_registration: true` —— 打开网页可自助注册
 * `console_access` —— Python 控制台谁能用：`admin`（默认）/ `user` / `off`。
   **本项目自带的 `config.json` 里是 `user`** —— 所有登录用户都能用控制台。
@@ -1338,6 +1395,7 @@ data/
 .\run-qgis-python.bat tests\check_core.py      # 内核自检
 .\run-qgis-python.bat tests\check_api.py       # REST 接口自检
 .\run-qgis-python.bat tests\check_auth.py      # 用户系统与空间隔离
+.\run-qgis-python.bat tests\check_passwordless.py # 免口令模式（只要用户名）
 .\run-qgis-python.bat tests\check_mcp.py       # MCP 工具自检（进程内调用 27 个工具）
 .\run-qgis-python.bat tests\check_mcp_stdio.py # MCP stdio 端到端
 .\run-qgis-python.bat tests\check_mcp_panels.py # MCP 面板/编辑/书签工具自检

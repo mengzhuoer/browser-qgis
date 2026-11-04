@@ -89,11 +89,11 @@
         <label for="username">用户名</label>
         <input id="username" name="username" autocomplete="username" required />
       </div>
-      <div class="fld">
+      <div class="fld" id="passwordRow">
         <label for="password">密码</label>
         <input id="password" name="password" type="password" autocomplete="current-password" required />
       </div>
-      <button type="submit">登录</button>
+      <button type="submit" id="loginBtn">登录</button>
     </form>
     <div class="shared" id="sharedBox">
       <div class="sh-hd">共享超级账号</div>
@@ -163,12 +163,14 @@ async function api(path, opts){
 $("loginForm").onsubmit = async e=>{
   e.preventDefault();
   clearError();
+  const name = $("username").value.trim();
   try{
     const r = await api("/api/auth/login", {
       method:"POST",
-      body: JSON.stringify({username:$("username").value, password:$("password").value}),
+      body: JSON.stringify({username:name, password:$("password").value}),
     });
     saveSession(r.token, r.user);
+    try{ localStorage.setItem("gisds.lastuser", name); }catch(e){}
     location.href = "/";
   }catch(err){ showError(err.message); }
 };
@@ -187,10 +189,25 @@ $("regBtn").onclick = async ()=>{
 
 // 服务端开关：要不要显示注册
 fetch("/api/auth/config").then(r=>r.json()).then(cfg=>{
-  if(cfg.allow_registration){
+  if(cfg.passwordless_login){
+    // 免口令模式：只要一个用户名。账号不存在会自动建，同名即同一个空间。
+    $("passwordRow").style.display = "none";
+    $("password").removeAttribute("required");
+    $("loginBtn").textContent = "进入";
+    $("tip").textContent = "免口令模式：输入一个用户名直接进入。同名即同一个空间，换设备也是同一份数据。";
+    $("regBox").classList.remove("on");
+    $("footExtra").innerHTML = "管理员账号仍然用密码登录。";
+    try{
+      const last = localStorage.getItem("gisds.lastuser");
+      if(last) $("username").value = last;
+    }catch(e){}
+    $("username").focus();
+  }
+  else if(cfg.allow_registration){
     $("regBox").classList.add("on");
     $("tip").textContent = "登录后即可加载、叠加与分析自己的空间数据。";
-  }else{
+  }
+  else{
     $("footExtra").innerHTML = '没有账号？<a href="#" id="askAdmin">请管理员在启动器里开号</a>。';
     $("askAdmin").onclick = (e)=>{ e.preventDefault(); showError("本服务未开放自助注册，请联系管理员创建账号。"); };
   }

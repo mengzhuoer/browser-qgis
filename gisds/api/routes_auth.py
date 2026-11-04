@@ -20,7 +20,17 @@ class RegisterIn(BaseModel):
 
 class LoginIn(BaseModel):
     username: str = Field(..., max_length=64)
-    password: str = Field(..., max_length=128)
+    # 免口令模式下密码可以留空；带密码时仍然走正常的密码校验
+    password: str = Field("", max_length=128)
+
+
+class ClaimIn(BaseModel):
+    """免口令认领：只要用户名。"""
+
+    # 长度下限交给 AuthService 判（中文提示），这里不卡 —— pydantic 的
+    # 「String should have at least 3 characters」对使用者来说是句洋话。
+    username: str = Field(..., max_length=32)
+    display_name: str = Field("", max_length=64)
 
 
 def _user_payload(user: dict) -> dict:
@@ -40,6 +50,7 @@ async def auth_config() -> dict:
     config = get_config()
     payload = {
         "require_login": config.require_login,
+        "passwordless_login": config.passwordless_login,
         "allow_registration": config.allow_registration,
         "admin_username": config.admin_username,
     }
@@ -61,6 +72,11 @@ async def auth_config() -> dict:
 @router.post("/register", status_code=201, summary="注册")
 async def register(payload: RegisterIn) -> dict:
     config = get_config()
+    if config.passwordless_login:
+        raise HTTPException(
+            status_code=400,
+            detail="免口令模式下不用注册：直接用 /api/auth/claim 填个用户名就能进",
+        )
     if not config.allow_registration:
         raise HTTPException(status_code=403, detail="本服务未开放自助注册，请联系管理员开号")
     auth = get_auth()
@@ -77,12 +93,36 @@ async def register(payload: RegisterIn) -> dict:
 @router.post("/login", summary="登录")
 async def login(payload: LoginIn) -> dict:
     auth = get_auth()
+    config = get_config()
     try:
-        token, user = auth.login(payload.username, payload.password)
+        if config.passwordless_login and not payload.password:
+            # 免口令模式：用户名就是身份
+            token, user = auth.claim_by_username(payload.username)
+        else:
+            token, user = auth.login(payload.username, payload.password)
     except AuthzError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
     except AuthError as exc:
         raise HTTPException(status_code=401, detail=str(exc)) from exc
+    return {"token": token, "user": _user_payload(user)}
+
+
+@router.post("/claim", summary="免口令进入（只要用户名）")
+async def claim(payload: ClaimIn) -> dict:
+    """免口令模式的入口：填个用户名直接进，账号不存在就当场建。
+
+    只在 ``passwordless_login`` 打开时可用。
+    """
+    config = get_config()
+    if not config.passwordless_login:
+        raise HTTPException(status_code=403, detail="本服务未开启免口令模式")
+    auth = get_auth()
+    try:
+        token, user = auth.claim_by_username(payload.username)
+    except AuthzError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except AuthError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"token": token, "user": _user_payload(user)}
 
 
