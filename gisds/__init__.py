@@ -5,5 +5,5 @@
 - MCP Server：给 OpenClaw（龙虾）等 Agent 当工具调用
 """
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 __all__ = ["__version__"]

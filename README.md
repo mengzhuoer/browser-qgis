@@ -1122,8 +1122,8 @@ qgis 44 + pdal 17 + 3d 1），provider 数仍是 9。
 
 | 包 | 体积 | 目标机器要装 QGIS 吗 |
 | --- | --- | --- |
-| `BrowserQGIS-1.1.0.zip` | **19 MB** | 要（本机已装 QGIS 就用这个） |
-| `BrowserQGIS-1.1.0-standalone.zip` | **525 MB** | **不用**（运行时在里面） |
+| `BrowserQGIS-1.2.0.zip` | **19 MB** | 要（本机已装 QGIS 就用这个） |
+| `BrowserQGIS-1.2.0-standalone.zip` | **525 MB** | **不用**（运行时在里面） |
 
 **怎么保证它真的能用**：打包脚本会**开包核对**运行时是否齐全；`prepare-qgis-runtime.ps1`
 会当场用新位置起一次 PyQGIS，并断言 `sys.path` 里**没有**原安装路径的残留；
@@ -1138,8 +1138,8 @@ qgis 44 + pdal 17 + 3d 1），provider 数仍是 9。
 
 | 包 | 体积 | 能不能进 git 仓库 |
 | --- | --- | --- |
-| `BrowserQGIS-1.1.0.zip` | 19 MB | 技术上能（< 100 MB），但每次 clone 都得多拖 19 MB，而且二进制一改，历史就永久膨胀 |
-| `BrowserQGIS-1.1.0-standalone.zip` | 525 MB | **不能** —— GitHub 硬拦仓库里超过 100 MiB 的文件（要跟踪只能用 Git LFS） |
+| `BrowserQGIS-1.2.0.zip` | 19 MB | 技术上能（< 100 MB），但每次 clone 都得多拖 19 MB，而且二进制一改，历史就永久膨胀 |
+| `BrowserQGIS-1.2.0-standalone.zip` | 525 MB | **不能** —— GitHub 硬拦仓库里超过 100 MiB 的文件（要跟踪只能用 Git LFS） |
 
 正确做法是**用 GitHub Releases 挂附件**：二进制只存一份，标签仍然指向源码，
 下载的人从 Release 页面直接拿 zip。Release 的**单个附件上限是 2 GB**，525 MB 放得下。
@@ -1150,14 +1150,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -File pack-release.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File pack-release.ps1 -Standalone
 
 # 2. 打标签（标签留在源码上）
-git tag -a v1.1.0 -m "Browser QGIS 1.1.0"
-git push origin v1.1.0
+git tag -a v1.2.0 -m "Browser QGIS 1.2.0"
+git push origin v1.2.0
 
 # 3. 挂附件到 Release
-gh release create v1.1.0 `
-  release\BrowserQGIS-1.1.0.zip `
-  release\BrowserQGIS-1.1.0-standalone.zip `
-  --title "Browser QGIS 1.1.0" `
+gh release create v1.2.0 `
+  release\BrowserQGIS-1.2.0.zip `
+  release\BrowserQGIS-1.2.0-standalone.zip `
+  --title "Browser QGIS 1.2.0" `
   --notes-file RELEASE_NOTES.md
 ```
 
